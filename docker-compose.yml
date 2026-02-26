@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: gigascale-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    # Backend geliştiricisinin kendi bilgisayarından (kod henüz dockerize edilmedi)
+   
+    ports:
+      - "127.0.0.1:6379:6379"
+    networks:
+      - internal
+    volumes:
+      - redis_data:/data
+
+networks:
+  internal:
+    name: gigascale-internal
+    driver: bridge
+  public:
+    name: gigascale-public
+    driver: bridge
+
+volumes:
+  redis_data:
+    name: gigascale-redis-data

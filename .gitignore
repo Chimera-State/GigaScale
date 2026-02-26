@@ -1,0 +1,31 @@
+# === Secrets ===
+.env
+
+# === Go Build ===
+bin/
+dist/
+*.exe
+*.test
+*.out
+vendor/
+
+# === IDE ===
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# === OS ===
+.DS_Store
+Thumbs.db
+
+# === Docker ===
+docker-compose.override.yml
+
+# === Test Outputs ===
+tests/results/
+*.json.report
+
+# === Logs ===
+*.log
+logs/

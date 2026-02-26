@@ -10,6 +10,6 @@ type ReserveHTTPRequest struct {
 
 //yanıtlar için struct
 type ReserveHTTPResponse struct {
-	Succes  bool   `json:"success"`
+	Success bool   `json:"success"`
 	Message string `json:"message"`
 }
