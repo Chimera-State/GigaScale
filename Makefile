@@ -1,7 +1,7 @@
 PROTO_DIR=api/proto
 MODULE=github.com/Chimera-State/GigaScale
 # Windows için ters slash kullanıyoruz
-OUT_DIR=internal\pb
+OUT_DIR=internal\backend
 
 .PHONY: proto clean
 

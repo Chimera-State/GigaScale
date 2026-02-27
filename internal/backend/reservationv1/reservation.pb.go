@@ -155,7 +155,7 @@ const file_reservation_proto_rawDesc = "" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage2n\n" +
 	"\x12ReservationService\x12X\n" +
-	"\vReserveSeat\x12\".reservation.v1.ReserveSeatRequest\x1a#.reservation.v1.ReserveSeatResponse\"\x00BLZJgithub.com/Chimera-State/GigaScale/internal/pb/reservationv1;reservationv1b\x06proto3"
+	"\vReserveSeat\x12\".reservation.v1.ReserveSeatRequest\x1a#.reservation.v1.ReserveSeatResponse\"\x00BQZOgithub.com/Chimera-State/GigaScale/internal/backend/reservationv1;reservationv1b\x06proto3"
 
 var (
 	file_reservation_proto_rawDescOnce sync.Once

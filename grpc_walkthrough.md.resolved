@@ -1,0 +1,41 @@
+# gRPC Sunucu Kurulumu Rehberi
+
+Bu rehber, gRPC sunucunuzu nasıl ayağa kaldıracağınızı ve belirtilen özellikleri nasıl ekleyeceğinizi adım adım açıklar.
+
+## 1. TCP Soketini Dinlemek
+gRPC, HTTP/2 protokolü üzerinden çalışır ve genellikle bir TCP soketi üzerinden dinleme yapar. `net.Listen` fonksiyonu, işletim sisteminden belirtilen portu (örneğin `:50051`) sizin için ayırmasını ister.
+
+```go
+lis, err := net.Listen("tcp", ":50051")
+```
+
+## 2. Basit Loglama (Interceptor/Middleware)
+gRPC'de "Middleware" kavramına **Interceptor** denir. `UnaryInterceptor`, her bir RPC çağrısı geldiğinde çalışan bir fonksiyondur. Terminale gelen istekleri yazdırmak için en profesyonel yöntem budur.
+
+```go
+loggingInterceptor := func(ctx, req, info, handler) {
+    log.Printf("İstek Geldi: %s", info.FullMethod) // Hangi metoda istek geldiğini yazar
+    return handler(ctx, req) // İsteği asıl işleyiciye iletir
+}
+```
+
+## 3. gRPC Sunucusunu Yaratmak
+`grpc.NewServer()` ile sunucu nesnesini oluştururken yukarıdaki interceptor'ı parametre olarak geçiyoruz.
+
+```go
+s := grpc.NewServer(
+    grpc.UnaryInterceptor(loggingInterceptor),
+)
+```
+
+## 4. Zarif Kapatma (Graceful Shutdown)
+Sunucuyu doğrudan kapatmak yerine `GracefulStop()` kullanmak, o an işlenmekte olan isteklerin bitmesini bekler ve yeni istek alımını durdurur. Bu işlem için OS sinyallerini (Interrupt) dinlememiz gerekir.
+
+- `signal.Notify`: İşletim sisteminden gelen kapatma sinyallerini yakalar.
+- `s.GracefulStop()`: Sunucuyu "kibarca" durdurur.
+
+---
+
+> [!TIP]
+> Gerekli paketleri indirmek için terminalde şu komutu çalıştırabilirsiniz:
+> `go get google.golang.org/grpc`
