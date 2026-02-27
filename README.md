@@ -1,59 +1,114 @@
-# GigaScale 
+# GigaScale Reservation Engine
 
-Şu anki aşama: **Sprint 1 - Foundation (GIGA-17, GIGA-18, GIGA-19)**
+## Proje Klasör Yapısı
 
-
-### 1. Altyapıyı Başlatın (Docker Compose)
-Backend ve diğer servislerin ihtiyaç duyduğu ağ ve veritabanı altyapısını ayağa kaldırmak için:
-
-```bash
-docker-compose up -d
+```text
+GIGASCALE/
+├── api/
+│   └── proto/
+│       └── reservation.proto         # gRPC servis & mesaj tanımları
+├── cmd/
+│   ├── backend/
+│   │   ├── main.go                   # Backend gRPC stub giriş noktası
+│   │   └── Dockerfile                # Multi-stage backend image
+│   └── gateway/
+│       ├── main.go                   # Gateway HTTP sunucu giriş noktası
+│       └── Dockerfile                # Multi-stage gateway image
+├── internal/
+│   ├── gateway/
+│   │   ├── handler.go                # HTTP → gRPC proxy handler
+│   │   └── models.go                 # HTTP request/response modelleri
+│   └── pb/
+│       └── reservationv1/
+│           └── reservation.go        # gRPC client stub (geçici)
+├── tests/
+│   └── postman/
+│       └── gigascale-min.json        # Minimum API test seti
+├── docker-compose.yml                # Tüm altyapıyı ayağa kaldıran dosya
+├── gigascale.ps1                     # Docker build/run yardımcı script (opsiyonel)
+├── go.mod                            # Go modül tanımı
+├── go.sum                            # Go bağımlılık checksum'ları
+└── README.md                         # Bu dosya
 ```
 
-Bu komut şunları yapacaktır:
-- `gigascale-internal`: Servislerin kendi aralarında haberleşeceği kapalı ağ oluşturulur.
-- `gigascale-public`: Dış dünyaya açılacak servisler (Örn: API Gateway) için ağ oluşturulur.
-- `gigascale-redis`: Veritabanı container'ı başlatılır. **Sadece internal ağa bağlıdır.**
 
-> **Backend Geliştiricileri İçin Not:**
-> Go kodunuzu henüz Docker içine almadan kendi bilgisayarınızda çalıştırırken Redis'e erişebilmeniz için, `docker-compose.yml` içinde Redis 6379 portu geçici olarak `localhost`'a açılmıştır. Kodunuzda Redis bağlantı adresini `localhost:6379` (veya `127.0.0.1:6379`) olarak kullanabilirsiniz.
 
-### 2. Durumu Kontrol Edin
-Container'ların sorunsuz çalıştığından emin olmak için:
+
+
+
+## Docker Komutları
+
+
+### Servisleri Başlatma
+```bash
+# Image'ları derle
+docker compose build
+
+# Servisleri arka planda başlat
+docker compose up -d
+
+# Tek komutla derle ve başlat
+docker compose up -d --build
+```
+
+### Durum Kontrolü
 ```bash
 docker ps
 ```
-`gigascale-redis` container'ının `Up` durumunda olduğunu görmelisiniz.
+`gigascale-gateway`, `gigascale-backend` ve `gigascale-redis` container'larının **Up** durumunda olduğunu görmelisiniz.
 
-### 3. Testleri İnceleyin (Postman)
-Minimum API standartlarımızı ve payload yapımızı görmek için:
-- `tests/postman/gigascale-min.json` dosyasını Postman'e (veya Insomnia'ya) import edin.
-- `/api/v1/reserve` endpoint'i için örnek request body ve header tanımlarını bulabilirsiniz.
-- Sizin geliştirdiğiniz Go API'si ayağa kalktığında ilk testleri bu collection üzerinden yapacağız.
-
-## Altyapıyı Kapatmak
-Çalışmanız bittiğinde veya sistemi sıfırlamak istediğinizde:
+### Logları İzleme
 ```bash
-# Sadece durdurmak için:
-docker-compose stop
+# Tüm servislerin loglarını canlı izle
+docker compose logs -f
 
-# Durdurup ağları/containerları silmek için:
-docker-compose down
+# Sadece belirli bir servisin logları
+docker compose logs -f gateway
+docker compose logs -f backend
 ```
 
-## Proje Klasör Yapısı (Mevcut Durum)
-```text
-GİGASCALE/
-├── api/
-│   └── proto/                  # gRPC proto tanımları
-├── cmd/
-│   └── gateway/                # API Gateway giriş noktası
-├── internal/
-│   └── gateway/                # Gateway iç mantığı
-├── go.mod                      # Go modül tanımı
-├── docker-compose.yml          # Tüm altyapıyı ayağa kaldıran dosya
-├── README.md                   # Proje dokümantasyonu
-└── tests/
-    └── postman/
-        └── gigascale-min.json  # Minimum API endpoint test seti
+### Servisi Durdurma
+```bash
+# Durdurmak (container'lar korunur)
+docker compose stop
+
+
+### Yeniden Derleme
+```bash
+
+docker compose down
+docker compose up -d --build
 ```
+
+### Testler (Postman)
+- `tests/postman/gigascale-min.json` dosyasını Postman'e import edin.
+- `/api/v1/reserve` endpoint'i için örnek request body ve header tanımlarını bulabilirsiniz.
+
+---
+
+## API Referansı
+
+### `POST /api/v1/reserve`
+
+Koltuk rezervasyonu oluşturur.
+
+**Request Body:**
+```json
+{
+  "user_id": "u-001",
+  "trip_id": "t-100",
+  "seat_id": "A1",
+  "Idempotency_key": "key-abc-123"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Koltuk başarıyla rezerve edildi."
+}
+```
+
+
+
