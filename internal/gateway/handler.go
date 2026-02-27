@@ -22,11 +22,11 @@ func HandleReserve(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
-		log.Printf("JSON Decoding Error %v", err)
-		http.Error(w, "Invalid data format", http.StatusBadRequest)
+		log.Printf("JSON ayrıştırma hatası %v", err)
+		http.Error(w, "Geçersiz veri formatı", http.StatusBadRequest)
 		return
 	}
-	//mapping
+	
 	grpcReq := &pb.ReserveSeatRequest{
 		UserId:         req.UserID,
 		TripId:         req.TripID,
@@ -39,8 +39,8 @@ func HandleReserve(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := ReserveClient.ReserveSeat(ctx, grpcReq)
 	if err != nil {
-		log.Printf("Backend gRPC Error %v", err)
-		http.Error(w, "Backend service was unavailable.", http.StatusInternalServerError)
+		log.Printf("Backend gRPC hatası %v", err)
+		http.Error(w, "Backend servis şu anda kullanılamıyor.", http.StatusInternalServerError)
 		return
 	}
 
