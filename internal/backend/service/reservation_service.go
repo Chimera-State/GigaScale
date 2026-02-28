@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 
-	"github.com/Chimera-State/GigaScale/internal/backend/reservationv1"
+	"github.com/Chimera-State/GigaScale/api/reservationv1"
 )
 
 // ReservationService, gRPC servisimizi uygulayan struct'tır.

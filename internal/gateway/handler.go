@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	pb "github.com/Chimera-State/GigaScale/internal/backend/reservationv1"
+	pb "github.com/Chimera-State/GigaScale/api/reservationv1"
 )
 
 var ReserveClient pb.ReservationServiceClient
