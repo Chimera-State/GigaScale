@@ -13,13 +13,10 @@ import (
 var ReserveClient pb.ReservationServiceClient
 
 func HandleReserve(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Sadece POST istekleri kabul edilir.", http.StatusMethodNotAllowed)
-		return
-	}
 
 	var req ReserveHTTPRequest
 
+	//JSON decode
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		log.Printf("JSON Decoding Error %v", err)
