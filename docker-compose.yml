@@ -1,0 +1,51 @@
+services:
+
+  # ── Backend (gRPC) ──────────────────────────────────────────────────────────
+  # Sadece internal ağda — dışarıya hiçbir port açılmaz (zero-trust)
+  backend:
+    build:
+      context: .
+      dockerfile: cmd/backend/Dockerfile
+    container_name: gigascale-backend
+    restart: unless-stopped
+    networks:
+      - internal
+
+  # ── Gateway (HTTP → gRPC) ───────────────────────────────────────────────────
+  # Dışarıdan gelen HTTP isteklerini alır, internal ağda backend'e iletir
+  gateway:
+    build:
+      context: .
+      dockerfile: cmd/gateway/Dockerfile
+    container_name: gigascale-gateway
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - BACKEND_ADDR=backend:50051   # container ismiyle bağlantı (GIGA-23)
+    networks:
+      - internal
+    depends_on:
+      - backend
+
+  # ── Redis ───────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:alpine
+    container_name: gigascale-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    ports:
+      - "127.0.0.1:6379:6379"   # sadece localhost'a bağlı (geliştirme için)
+    networks:
+      - internal
+    volumes:
+      - redis_data:/data
+
+networks:
+  internal:
+    name: gigascale-internal
+    driver: bridge
+
+volumes:
+  redis_data:
+    name: gigascale-redis-data

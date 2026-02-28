@@ -2,8 +2,7 @@ syntax = "proto3";
 
 package reservation.v1;
 
-option go_package = "github.com/Chimera-State/GigaScale/internal/pb/reservationv1;reservationv1";
-
+option go_package = "github.com/Chimera-State/GigaScale/gi/api/proto/reservation/v1;reservation";
 service ReservationService {
   rpc ReserveSeat(ReserveSeatRequest) returns (ReserveSeatResponse) {}
 }
