@@ -8,7 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/Chimera-State/GigaScale/api/reservationv1"
+	"github.com/Chimera-State/GigaScale/api/proto/reservation/v1"
 	"github.com/Chimera-State/GigaScale/internal/backend/service"
 	"google.golang.org/grpc"
 )

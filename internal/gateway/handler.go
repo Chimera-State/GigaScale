@@ -7,7 +7,8 @@ import (
 	"net/http"
 	"time"
 
-	pb "github.com/Chimera-State/GigaScale/api/reservationv1"
+	pb "github.com/Chimera-State/GigaScale/api/proto/reservation/v1"
+	"github.com/go-playground/validator/v10"
 )
 
 var ReserveClient pb.ReservationServiceClient
@@ -15,6 +16,7 @@ var ReserveClient pb.ReservationServiceClient
 func HandleReserve(w http.ResponseWriter, r *http.Request) {
 
 	var req ReserveHTTPRequest
+	var validate = validator.New()
 
 	//JSON decode
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -23,6 +25,13 @@ func HandleReserve(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid data format", http.StatusBadRequest)
 		return
 	}
+
+	if err := validate.Struct(req); err != nil {
+		log.Printf("Validation Error: %v", err)
+		http.Error(w, "Data Validation Error: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	//mapping
 	grpcReq := &pb.ReserveSeatRequest{
 		UserId:         req.UserID,

@@ -4,9 +4,8 @@ import (
 	"log"
 	"net/http"
 
-	pb "github.com/Chimera-State/GigaScale/api/reservationv1"
+	pb "github.com/Chimera-State/GigaScale/api/proto/reservation/v1"
 	"github.com/Chimera-State/GigaScale/internal/gateway"
-
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
