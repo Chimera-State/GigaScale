@@ -1,5 +1,6 @@
 package main
 
+//main.go
 import (
 	"log"
 	"net/http"
@@ -19,11 +20,12 @@ func main() {
 	}
 	defer conn.Close()
 
-	//globalclient
-	gateway.ReserveClient = pb.NewReservationServiceClient(conn)
+	client := pb.NewReservationServiceClient(conn)
+
+	srv := gateway.NewServer(client)
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("POST /api/v1/reserve", gateway.HandleReserve)
+	mux.HandleFunc("POST /api/v1/reserve", srv.HandleReserve)
 
 	if err := http.ListenAndServe(":8080", mux); err != nil {
 		log.Fatalf("Server failed to start %v", err)

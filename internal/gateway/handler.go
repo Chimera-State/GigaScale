@@ -1,5 +1,6 @@
 package gateway
 
+//handler.go
 import (
 	"context"
 	"encoding/json"
@@ -8,15 +9,11 @@ import (
 	"time"
 
 	pb "github.com/Chimera-State/GigaScale/api/proto/reservation/v1"
-	"github.com/go-playground/validator/v10"
 )
 
-var ReserveClient pb.ReservationServiceClient
-
-func HandleReserve(w http.ResponseWriter, r *http.Request) {
+func (s *Server) HandleReserve(w http.ResponseWriter, r *http.Request) {
 
 	var req ReserveHTTPRequest
-	var validate = validator.New()
 
 	//JSON decode
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -26,7 +23,7 @@ func HandleReserve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := validate.Struct(req); err != nil {
+	if err := s.validator.Struct(req); err != nil {
 		log.Printf("Validation Error: %v", err)
 		http.Error(w, "Data Validation Error: "+err.Error(), http.StatusBadRequest)
 		return
@@ -43,7 +40,7 @@ func HandleReserve(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
-	resp, err := ReserveClient.ReserveSeat(ctx, grpcReq)
+	resp, err := s.reserveClient.ReserveSeat(ctx, grpcReq)
 	if err != nil {
 		log.Printf("Backend gRPC Error %v", err)
 		http.Error(w, "Backend service was unavailable.", http.StatusInternalServerError)
