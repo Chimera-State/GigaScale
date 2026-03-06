@@ -23,9 +23,11 @@ func main() {
 	client := pb.NewReservationServiceClient(conn)
 
 	srv := gateway.NewServer(client)
-
+	//ratelimiter
+	secureHandler := srv.RateLimiter(http.HandlerFunc(srv.HandleReserve))
+	//router(Mux)
 	mux := http.NewServeMux()
-	mux.HandleFunc("POST /api/v1/reserve", srv.HandleReserve)
+	mux.Handle("POST /api/v1/reserve", secureHandler)
 
 	if err := http.ListenAndServe(":8080", mux); err != nil {
 		log.Fatalf("Server failed to start %v", err)
