@@ -22,7 +22,7 @@ func main() {
 
 	client := pb.NewReservationServiceClient(conn)
 
-	srv := gateway.NewServer(client)
+	srv := gateway.NewServer(client, gateway.NewLocalLimiter())
 	//ratelimiter
 	secureHandler := srv.RateLimiter(http.HandlerFunc(srv.HandleReserve))
 	//router(Mux)

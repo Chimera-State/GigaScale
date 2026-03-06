@@ -28,7 +28,13 @@ type ReserveHTTPResponse struct {
 type Server struct {
 	reserveClient pb.ReservationServiceClient
 	validator     *validator.Validate
+	limiter       RateLimiter
+}
+type RateLimiter interface {
+	Allow() bool
+}
 
+type LocalLimiter struct {
 	mu         sync.Mutex
 	tokens     float64
 	capacity   float64
@@ -36,15 +42,38 @@ type Server struct {
 	lastRefill time.Time
 }
 
+func NewLocalLimiter() *LocalLimiter {
+	return &LocalLimiter{
+		capacity:   10.0,
+		tokens:     4.0,
+		refillRate: 0.5,
+		lastRefill: time.Now(),
+	}
+}
+
+func (l *LocalLimiter) Allow() bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	now := time.Now()
+	duration := now.Sub(l.lastRefill).Seconds()
+	l.tokens += duration * l.refillRate
+	if l.tokens > l.capacity {
+		l.tokens = l.capacity
+	}
+	l.lastRefill = now
+	if l.tokens > 1.0 {
+		l.tokens -= 1.0
+		return true
+	}
+	return false
+}
+
 // constructor
-func NewServer(client pb.ReservationServiceClient) *Server {
+func NewServer(client pb.ReservationServiceClient, limiter RateLimiter) *Server {
 	return &Server{
 		reserveClient: client,
 		validator:     validator.New(),
-
-		capacity:   10,
-		tokens:     10,
-		refillRate: 1,
-		lastRefill: time.Now(),
+		limiter:       limiter,
 	}
 }
