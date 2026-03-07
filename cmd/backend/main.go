@@ -10,10 +10,15 @@ import (
 
 	"github.com/Chimera-State/GigaScale/api/proto/reservation/v1"
 	"github.com/Chimera-State/GigaScale/internal/backend/service"
+	"github.com/Chimera-State/GigaScale/internal/backend/redisclient"
 	"google.golang.org/grpc"
 )
 
 func main() {
+
+	redisclient.NewRedisClient()
+	redisclient.HealthCheck(context.Background())
+
 	lis, err := net.Listen("tcp", ":50051")
 	if err != nil {
 		log.Fatalf("soket dinlenemedi: %v", err)
