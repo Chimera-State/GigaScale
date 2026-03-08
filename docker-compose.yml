@@ -4,17 +4,22 @@ services:
   # Sadece internal ağda — dışarıya hiçbir port açılmaz (zero-trust)
   backend:
     build:
-      context: .
-      dockerfile: cmd/backend/Dockerfile
-    container_name: gigascale-backend
-    restart: unless-stopped
+      context: . # Projenin kök dizini
+      dockerfile: cmd/backend/Dockerfile # Projede DockerFile yolunu belirtiyoruz
+    container_name: gigascale-backend # Container ismini belirtiyoruz
+    restart: unless-stopped # Container durdurulursa otomatik başlat
     networks:
-      - internal
+      - internal # ağ bağlanma kısmında dışarıya kapalı port açılmaz(zero trust)
+    environment:
+      - REDIS_ADDR=redis:6379
+    depends_on:
+      - redis
 
   # ── Gateway (HTTP → gRPC) ───────────────────────────────────────────────────
   # Dışarıdan gelen HTTP isteklerini alır, internal ağda backend'e iletir
   gateway:
     build:
+      # Gateway için   
       context: .
       dockerfile: cmd/gateway/Dockerfile
     container_name: gigascale-gateway
@@ -22,30 +27,55 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - BACKEND_ADDR=backend:50051   # container ismiyle bağlantı (GIGA-23)
+      - BACKEND_ADDR=backend:50051 # container ismiyle bağlantı 
     networks:
       - internal
     depends_on:
-      - backend
+      - backend # backend ayağa kalkmadan gateway ayağa kalkmasın
 
-  # ── Redis ───────────────────────────────────────────────────────────────────
+  # ── Redis ─────────────────────────────────────────────────────────────────────
   redis:
     image: redis:alpine
     container_name: gigascale-redis
-    restart: unless-stopped
-    command: redis-server --appendonly yes
+    command: --appendonly yes
     ports:
-      - "127.0.0.1:6379:6379"   # sadece localhost'a bağlı (geliştirme için)
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - internal
+    restart: unless-stopped
+
+  # ── RedisInsight (Redis GUI) ───────────────────────────────────────────────────
+  redisinsight:
+    image: redis/redisinsight:latest
+    container_name: gigascale-redisinsight
+    restart: unless-stopped
+    ports:
+      - "5540:5540" # Tarayıcıdan http://localhost:5540 ile erişilir
+    networks:
+      - internal # Redis ile aynı ağda olmalı ki bağlanabilsin
+    depends_on:
+      - redis # Redis ayağa kalkmadan RedisInsight başlamasın
+
+  k6:
+    image: grafana/k6:latest # tüm testleri burada çalıştıracağız
+    container_name: gigascale-k6
+    depends_on:
+      - gateway
     networks:
       - internal
     volumes:
-      - redis_data:/data
+      # volumes, container'lar silinse bile verilerin kalmasını sağlar
+      - ./k6:/scripts
+    working_dir: /scripts
+    entrypoint: [ "k6" ]
 
+# -------------------------------------
 networks:
   internal:
     name: gigascale-internal
     driver: bridge
 
 volumes:
-  redis_data:
-    name: gigascale-redis-data
+  redis-data: # Redis verilerini kalıcı tutmak için
