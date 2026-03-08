@@ -42,8 +42,7 @@ func (s *Server) HandleReserve(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := s.reserveClient.ReserveSeat(ctx, grpcReq)
 	if err != nil {
-		log.Printf("Backend gRPC Error %v", err)
-		http.Error(w, "Backend service was unavailable.", http.StatusInternalServerError)
+		s.handleGRPCError(w, err)
 		return
 	}
 
