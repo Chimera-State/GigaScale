@@ -7,10 +7,9 @@ export const options = {
 };
 
 export default function () {
-    const res =
-        http.get('http://gateway:8080/api/v1/reserve');
+    const res = http.get('http://gateway:8080/health');
     check(res, {
-        'status 200 mü?': (r) => r.status === 200,
+        'gateway ayakta mı?': (r) => r.status === 200,
     });
     sleep(1);
 }
