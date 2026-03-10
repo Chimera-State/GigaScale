@@ -6,7 +6,7 @@ import (
 )
 
 type RateLimiter interface {
-	Allow() bool
+	Allow(ip string) bool
 }
 
 type LocalLimiter struct {
@@ -21,9 +21,36 @@ func NewLocalLimiter(capacity, refillRate float64) *LocalLimiter {
 	return &LocalLimiter{
 		capacity:   capacity,
 		tokens:     capacity,
-		refillRate: 0.5,
+		refillRate: refillRate,
 		lastRefill: time.Now(),
 	}
+}
+
+type IpLimiter struct {
+	mu         sync.Mutex
+	buckets    map[string]*LocalLimiter
+	capacity   float64
+	refillRate float64
+}
+
+func NewIpLimiter(capacity, refillRate float64) *IpLimiter {
+	return &IpLimiter{
+		buckets:    make(map[string]*LocalLimiter),
+		capacity:   capacity,
+		refillRate: refillRate,
+	}
+}
+
+func (ipl *IpLimiter) Allow(ip string) bool {
+	ipl.mu.Lock()
+	bucket, exists := ipl.buckets[ip]
+	if !exists {
+		bucket = NewLocalLimiter(ipl.capacity, ipl.refillRate)
+		ipl.buckets[ip] = bucket
+	}
+	ipl.mu.Unlock()
+
+	return bucket.Allow()
 }
 
 func (l *LocalLimiter) Allow() bool {

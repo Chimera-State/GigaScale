@@ -38,13 +38,18 @@ func main() {
 
 	//dp injection
 	v := validator.New()
-	l := gateway.NewLocalLimiter(10, 2)
+	l := gateway.NewIpLimiter(10, 2)
 
 	srv := gateway.NewServer(client, l, v)
 
 	mux := http.NewServeMux()
 	secureHandler := srv.RateLimiter(http.HandlerFunc(srv.HandleReserve))
 	mux.Handle("POST /api/v1/reserve", secureHandler)
+
+	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("GigaScale is alive"))
+	})
 
 	httpServer := &http.Server{
 		Addr:    serverPort,

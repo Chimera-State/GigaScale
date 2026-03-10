@@ -13,6 +13,7 @@ func (s *Server) handleGRPCError(w http.ResponseWriter, err error) {
 	if !ok {
 		log.Printf("CRITICAL: Unknown error type: %v", err)
 		http.Error(w, "An unexpected error occured", http.StatusInternalServerError)
+		return
 	}
 
 	log.Printf("[BACKEND ERROR] Code: %s, Message: %s", st.Code(), st.Message())
