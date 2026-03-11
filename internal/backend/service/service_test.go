@@ -97,6 +97,7 @@ var mockSeatTaken bool
 var mockMu sync.Mutex
 
 func mockReserveSeat(req *reservationv1.ReserveSeatRequest) (*reservationv1.ReserveSeatResponse, error) {
+	_ = req
 	mockMu.Lock()
 	defer mockMu.Unlock()
 

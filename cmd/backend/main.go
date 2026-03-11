@@ -9,7 +9,9 @@ import (
 	"syscall"
 
 	reservationv1 "github.com/Chimera-State/GigaScale/api/proto/reservation/v1"
+	"github.com/Chimera-State/GigaScale/internal/backend/pkg/redislock"
 	"github.com/Chimera-State/GigaScale/internal/backend/service"
+	"github.com/redis/go-redis/v9"
 	"google.golang.org/grpc"
 )
 
@@ -25,7 +27,17 @@ func main() {
 	s := grpc.NewServer(
 		grpc.UnaryInterceptor(loggingInterceptor),
 	)
-	myService := service.NewReservationService()
+
+	redisAddr := os.Getenv("REDIS_ADDR")
+	if redisAddr == "" {
+		redisAddr = "redis:6379"
+	}
+	rdb := redis.NewClient(&redis.Options{
+		Addr: redisAddr,
+	})
+	locker := redislock.NewLocker(rdb)
+
+	myService := service.NewReservationService(locker)
 
 	reservationv1.RegisterReservationServiceServer(s, myService)
 

@@ -32,6 +32,19 @@ func (s *ReservationService) ReserveSeat(ctx context.Context, req *reservationv1
 	println("- Koltuk ID:", seatID)
 	println("- Idempotency Key:", idempotencyKey)
 
+	if idempotencyKey != "" {
+		isNew, err := s.locker.CheckIdempotency(ctx, "idempotency:"+idempotencyKey, 24*time.Hour)
+		if err != nil {
+			return nil, fmt.Errorf("idempotency denetiminde hata: %w", err)
+		}
+		if !isNew {
+			return &reservationv1.ReserveSeatResponse{
+				Success: true,
+				Message: "Mükerrer İstek (Idempotency): İşleminiz sistemde zaten başarılı şekilde kaydedilmiş.",
+			}, nil
+		}
+	}
+
 	lockKey := fmt.Sprintf("lock:reservation:trip:%s:seat:%s", tripID, seatID)
 	lockTTL := 5 * time.Second
 

@@ -78,3 +78,13 @@ func (l *Locker) Release(ctx context.Context, key string, token string) error {
 	}
 	return nil
 }
+
+func (l *Locker) CheckIdempotency(ctx context.Context, key string, ttl time.Duration) (bool, error) {
+	resp, err := l.client.SetArgs(ctx, key, "processed", redis.SetArgs{Mode: "NX", TTL: ttl}).Result()
+	if err == redis.Nil {
+		return false, nil
+	} else if err != nil {
+		return false, err
+	}
+	return resp == "OK", nil
+}

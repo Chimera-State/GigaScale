@@ -1,13 +1,13 @@
-PROTO_DIR=api/proto
+PROTO_DIR=api/proto/reservation/v1
 MODULE=github.com/Chimera-State/GigaScale
-# Windows için ters slash kullanıyoruz
-OUT_DIR=internal\backend
 
 .PHONY: proto clean
 
 proto:
-	@if not exist $(OUT_DIR) mkdir $(OUT_DIR)
-	protoc --proto_path=$(PROTO_DIR) --go_out=. --go_opt=module=$(MODULE) --go-grpc_out=. --go-grpc_opt=module=$(MODULE) $(PROTO_DIR)/reservation.proto
+	protoc -I . \
+	  --go_out=. --go_opt=paths=source_relative \
+	  --go-grpc_out=. --go-grpc_opt=paths=source_relative \
+	  $(PROTO_DIR)/reservation.proto
 
 clean:
-	@if exist $(OUT_DIR) rmdir /s /q $(OUT_DIR)
+	rm -f $(PROTO_DIR)/*.pb.go $(PROTO_DIR)/*.gw.go
