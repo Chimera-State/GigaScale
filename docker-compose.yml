@@ -71,6 +71,29 @@ services:
     working_dir: /scripts
     entrypoint: [ "k6" ]
 
+
+  caddy:
+    image: caddy:latest
+    container_name: gigascale-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - internal
+    depends_on:
+      - gateway
+
+
+
+
+
+
+
 # -------------------------------------
 networks:
   internal:
@@ -79,3 +102,5 @@ networks:
 
 volumes:
   redis-data: # Redis verilerini kalıcı tutmak için
+  caddy_data:
+  caddy_config:
