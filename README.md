@@ -19,12 +19,10 @@ GIGASCALE/
 │   │   ├── handler.go                # HTTP → gRPC proxy handler
 │   │   └── models.go                 # HTTP request/response modelleri
 │   ├── backend/
-│   │   ├── service/                  # gRPC servis implementasyonu
-│   │   └── redisclient/
-│   │       └── redis.go              # Redis bağlantısı, Connection Pool & Health Check
-│   └── pb/
-│       └── reservationv1/
-│           └── reservation.go        # gRPC client stub (geçici)
+│       ├── service/                  # gRPC servis implementasyonu
+│       └── redisclient/
+│           └── redis.go              # Redis bağlantısı, Connection Pool & Health Check
+│  
 ├── k6/
 │   └── basic-get.js                  # k6 yük testi scripti (10 VU, 30s)
 ├── tests/

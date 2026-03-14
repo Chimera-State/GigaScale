@@ -14,6 +14,10 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o backend ./cmd/backend
 # AŞaam 2 : çalıştırma  
 FROM alpine:3.19
 
+RUN wget -qO /bin/grpc_health_probe https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/v0.4.25/grpc_health_probe-linux-amd64 \
+    && chmod +x /bin/grpc_health_probe
+
+
 WORKDIR /app
 
 # Sadece binary'yi al, binary image boyutunu küçültmek için

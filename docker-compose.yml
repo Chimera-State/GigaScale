@@ -4,19 +4,32 @@ services:
   # Sadece internal ağda — dışarıya hiçbir port açılmaz (zero-trust)
   backend:
     build:
-      context: . # Projenin kök dizini
-      dockerfile: cmd/backend/Dockerfile # Projede DockerFile yolunu belirtiyoruz
-    container_name: gigascale-backend # Container ismini belirtiyoruz
-    restart: unless-stopped # Container durdurulursa otomatik başlat
+      context: .
+      dockerfile: cmd/backend/Dockerfile
+    container_name: gigascale-backend
+    restart: unless-stopped
     networks:
-      - internal # ağ bağlanma kısmında dışarıya kapalı port açılmaz(zero trust)
+      - internal
     environment:
       - REDIS_ADDR=redis:6379
     depends_on:
       - redis
+    healthcheck:
+      test: [ "CMD", "grpc_health_probe", "-addr=:50051" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.00"
+          memory: 512M
+        reservations:
+          memory: 256M
 
   # ── Gateway (HTTP → gRPC) ───────────────────────────────────────────────────
-  # Dışarıdan gelen HTTP isteklerini alır, internal ağda backend'e iletir
+
   gateway:
     build:
       # Gateway için   
@@ -25,51 +38,121 @@ services:
     container_name: gigascale-gateway
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "8080"
     environment:
-      - BACKEND_ADDR=backend:50051 # container ismiyle bağlantı 
+      - BACKEND_ADDR=backend:50051
     networks:
       - internal
     depends_on:
-      - backend # backend ayağa kalkmadan gateway ayağa kalkmasın
+      - backend
+    healthcheck:
+      test: [ "CMD", "wget", "-q", "--spider", "http://localhost:8080/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 256M
+        reservations:
+          memory: 128M
 
   # ── Redis ─────────────────────────────────────────────────────────────────────
   redis:
     image: redis:alpine
     container_name: gigascale-redis
     command: --appendonly yes
-    ports:
-      - "6379:6379"
     volumes:
       - redis-data:/data
     networks:
       - internal
     restart: unless-stopped
-
-  # ── RedisInsight (Redis GUI) ───────────────────────────────────────────────────
-  redisinsight:
-    image: redis/redisinsight:latest
-    container_name: gigascale-redisinsight
-    restart: unless-stopped
-    ports:
-      - "5540:5540" # Tarayıcıdan http://localhost:5540 ile erişilir
-    networks:
-      - internal # Redis ile aynı ağda olmalı ki bağlanabilsin
-    depends_on:
-      - redis # Redis ayağa kalkmadan RedisInsight başlamasın
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 256M
+        reservations:
+          memory: 128M
 
   k6:
-    image: grafana/k6:latest # tüm testleri burada çalıştıracağız
+    image: grafana/k6:latest
     container_name: gigascale-k6
     depends_on:
       - gateway
     networks:
       - internal
     volumes:
-      # volumes, container'lar silinse bile verilerin kalmasını sağlar
+
       - ./k6:/scripts
     working_dir: /scripts
     entrypoint: [ "k6" ]
+
+  # ── PostgreSQL ─────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: gigascale-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=gigascale
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    networks:
+      - internal
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d gigascale" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  # ── Payment Service (gRPC) ────────────────────────────────────────────────
+  payment:
+    build:
+      context: .
+      dockerfile: cmd/payment/Dockerfile
+    container_name: gigascale-payment
+    restart: unless-stopped
+    networks:
+      - internal
+    environment:
+      - PG_HOST=postgres
+      - PG_PORT=5432
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=gigascale
+    depends_on:
+      - postgres
+
+    healthcheck:
+      test: [ "CMD", "grpc_health_probe", "-addr=:50052" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 256M
+        reservations:
+          memory: 128M
 
 # -------------------------------------
 networks:
@@ -78,4 +161,5 @@ networks:
     driver: bridge
 
 volumes:
-  redis-data: # Redis verilerini kalıcı tutmak için
+  redis-data:
+  pg-data:

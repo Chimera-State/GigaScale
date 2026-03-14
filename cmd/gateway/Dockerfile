@@ -13,6 +13,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o gateway ./cmd/gateway
 
 # aşama 2 : çalıştırma 
 FROM alpine:3.19
+RUN apk add --no-cache wget
 
 WORKDIR /app
 
