@@ -1,4 +1,5 @@
 package main
+
 import (
 	"context"
 	"log"
@@ -6,19 +7,18 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+
 	reservationv1 "github.com/Chimera-State/GigaScale/api/proto/reservation/v1"
 	"github.com/Chimera-State/GigaScale/internal/backend/pkg/db"
 	"github.com/Chimera-State/GigaScale/internal/backend/pkg/redislock"
-<<<<<<< HEAD
 	"github.com/Chimera-State/GigaScale/internal/backend/redisclient"
-=======
 	"github.com/Chimera-State/GigaScale/internal/backend/repository"
->>>>>>> origin/fetaure/sprint3
 	"github.com/Chimera-State/GigaScale/internal/backend/service"
 	"github.com/redis/go-redis/v9"
-	"google.golang.org/grpc"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"google.golang.org/grpc"
 )
+
 func main() {
 
 	redisclient.NewRedisClient()
