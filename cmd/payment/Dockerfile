@@ -1,25 +1,22 @@
- 
 FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
 
-# Bağımlılıkları önce kopyala
-COPY go.mod go.sum  ./
-RUN  go mod download
+COPY go.mod go.sum ./
+RUN go mod download
 
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -o backend ./cmd/backend
+RUN CGO_ENABLED=0 GOOS=linux go build -o payment ./cmd/payment
 
 FROM alpine:3.19
 
 RUN wget -qO /bin/grpc_health_probe https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/v0.4.25/grpc_health_probe-linux-amd64 \
     && chmod +x /bin/grpc_health_probe
 
-
 WORKDIR /app
 
-COPY --from=builder /app/backend .
+COPY --from=builder /app/payment .
 
-EXPOSE 50051
+EXPOSE 50052
 
-ENTRYPOINT ["./backend"]
+ENTRYPOINT ["./payment"]
