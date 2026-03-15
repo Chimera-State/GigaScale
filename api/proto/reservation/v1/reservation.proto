@@ -1,21 +1,24 @@
 syntax = "proto3";
-
 package reservation.v1;
-
 option go_package = "github.com/Chimera-State/GigaScale/api/proto/reservation/v1;reservation";
-
 service ReservationService {
   rpc ReserveSeat(ReserveSeatRequest) returns (ReserveSeatResponse) {}
+  rpc CancelReservation(CancelRequest) returns (CancelResponse) {}
 }
-
 message ReserveSeatRequest {
   string user_id = 1;
-  string trip_id = 2; // setnx için
+  string trip_id = 2;
   string seat_id = 3;
   string idempotency_key = 4;
 }
-
 message ReserveSeatResponse {
-  bool success = 1; //koltuk dolu mu boş mu
-  string message = 2; //başarılı veya koltuk dolu
+  bool success = 1;
+  string message = 2;
+}
+message CancelRequest {
+  string idempotency_key = 1;
+}
+message CancelResponse {
+  bool success = 1;
+  string message = 2;
 }
