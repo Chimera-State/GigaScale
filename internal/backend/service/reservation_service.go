@@ -2,51 +2,73 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"time"
 
-	"github.com/Chimera-State/GigaScale/api/proto/reservation/v1"
+	reservationv1 "github.com/Chimera-State/GigaScale/api/proto/reservation/v1"
+	"github.com/Chimera-State/GigaScale/internal/backend/pkg/redislock"
 )
 
-// ReservationService, gRPC servisimizi uygulayan struct'tır.
 type ReservationService struct {
-	// İleriye dönük uyumluluk (forward compatibility) için protoc tarafından
-	// üretilen bu struct'ı gömmemiz zorunludur.
 	reservationv1.UnimplementedReservationServiceServer
+	locker *redislock.Locker
 }
 
-// NewReservationService, yeni bir ReservationService oluşturup döndürür.
-func NewReservationService() *ReservationService {
-	return &ReservationService{}
+func NewReservationService(locker *redislock.Locker) *ReservationService {
+	return &ReservationService{
+		locker: locker,
+	}
 }
 
-// ReserveSeat, protobuf'ta tanımladığımız RPC metodunun gerçek uygulamasıdır.
 func (s *ReservationService) ReserveSeat(ctx context.Context, req *reservationv1.ReserveSeatRequest) (*reservationv1.ReserveSeatResponse, error) {
-	// 1. Gelen İstekteki Verileri Okuma
-	// İstemci (client) bu fonksiyonu çağırdığında, gönderdiği veriler `req` nesnesinin içindedir.
-	// Proto dosyasındaki tanımlarınıza göre bu verileri `Get...()` fonksiyonlarıyla alırız.
 	userID := req.GetUserId()
 	tripID := req.GetTripId()
 	seatID := req.GetSeatId()
 	idempotencyKey := req.GetIdempotencyKey()
 
-	// Şimdilik sadece log'a yazdıralım.
-	// (Gerçekte burada Redis/Veritabanı işlemi yapacaksınız)
 	println("Gelen Rezervasyon İsteği:")
 	println("- Kullanıcı ID:", userID)
 	println("- Trip ID:", tripID)
 	println("- Koltuk ID:", seatID)
 	println("- Idempotency Key:", idempotencyKey)
 
-	// 2. İş Mantığınızı (Business Logic) Uygulama
-	// TODO: İleride burada veritabanına ya da Redis'e bağlanıp, "bu koltuk boş mu?" diye kontrol edeceğiz (SETNX işlemi vb.).
-	// Şimdilik sahte (dummy) bir yanıt dönüyoruz, yani her işlem her zaman başarılıymış gibi davranıyoruz.
-	isSuccess := true
-	responseMessage := "İşlem Başarılı"
+	if idempotencyKey != "" {
+		isNew, err := s.locker.CheckIdempotency(ctx, "idempotency:"+idempotencyKey, 24*time.Hour)
+		if err != nil {
+			return nil, fmt.Errorf("idempotency denetiminde hata: %w", err)
+		}
+		if !isNew {
+			return &reservationv1.ReserveSeatResponse{
+				Success: true,
+				Message: "Mükerrer İstek (Idempotency): İşleminiz sistemde zaten başarılı şekilde kaydedilmiş.",
+			}, nil
+		}
+	}
 
-	// 3. İstemciye Yanıt (Response) Döndürme
-	// Proto dosyanızdaki `ReserveSeatResponse` mesajına (struct'a) karşılık gelen
-	// verileri istemciye gRPC üzerinden dönüyoruz.
+	lockKey := fmt.Sprintf("lock:reservation:trip:%s:seat:%s", tripID, seatID)
+	lockTTL := 5 * time.Second
+
+	retryConfig := redislock.RetryConfig{
+		MaxRetries: 4,
+		RetryDelay: 4 * time.Second,
+	}
+
+	lockToken, acquired, err := s.locker.AcquireWithRetry(ctx, lockKey, lockTTL, retryConfig)
+	if err != nil {
+		return nil, fmt.Errorf("sistem hatası, kilit kontrol edilemedi: %w", err)
+	}
+
+	if !acquired {
+		return &reservationv1.ReserveSeatResponse{
+			Success: false,
+			Message: "Sistem şu anda aşırı yoğun veya koltuk çoktan satıldı. Lütfen daha sonra tekrar deneyin.",
+		}, nil
+	}
+
+	defer s.locker.Release(ctx, lockKey, lockToken)
+
 	return &reservationv1.ReserveSeatResponse{
-		Success: isSuccess,
-		Message: responseMessage,
+		Success: true,
+		Message: "İşlem Başarılı. Kilit ile güvenli bir şekilde alındı.",
 	}, nil
 }

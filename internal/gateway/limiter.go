@@ -1,12 +1,15 @@
 package gateway
 
 import (
+	"context"
 	"sync"
 	"time"
+
+	"github.com/redis/go-redis/v9"
 )
 
 type RateLimiter interface {
-	Allow(ip string) bool
+	Allow(ctx context.Context, ip string) bool
 }
 
 type LocalLimiter struct {
@@ -24,6 +27,24 @@ func NewLocalLimiter(capacity, refillRate float64) *LocalLimiter {
 		refillRate: refillRate,
 		lastRefill: time.Now(),
 	}
+}
+
+func (l *LocalLimiter) Allow() bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	now := time.Now()
+	duration := now.Sub(l.lastRefill).Seconds()
+	l.tokens += duration * l.refillRate
+	if l.tokens > l.capacity {
+		l.tokens = l.capacity
+	}
+	l.lastRefill = now
+	if l.tokens >= 1.0 {
+		l.tokens -= 1.0
+		return true
+	}
+	return false
 }
 
 type IpLimiter struct {
@@ -53,20 +74,38 @@ func (ipl *IpLimiter) Allow(ip string) bool {
 	return bucket.Allow()
 }
 
-func (l *LocalLimiter) Allow() bool {
-	l.mu.Lock()
-	defer l.mu.Unlock()
+type RedisLimiter struct {
+	rdb        *redis.Client
+	capacity   float64
+	refillRate float64
+}
 
-	now := time.Now()
-	duration := now.Sub(l.lastRefill).Seconds()
-	l.tokens += duration * l.refillRate
-	if l.tokens > l.capacity {
-		l.tokens = l.capacity
+func NewRedisLimiter(rdb *redis.Client, cap, rate float64) *RedisLimiter {
+	return &RedisLimiter{
+		rdb:        rdb,
+		capacity:   cap,
+		refillRate: rate,
 	}
-	l.lastRefill = now
-	if l.tokens >= 1.0 {
-		l.tokens -= 1.0
-		return true
-	}
-	return false
+}
+
+func (rl *RedisLimiter) Allow(ctx context.Context, ip string) bool {
+	script := `
+	local tokens_key = KEYS[1]
+	local last_refill_key = KEYS[2]
+
+	local capacity = tonumber(ARGV[1])
+	local refill_rate = to number(ARGV[2])
+	local now = tonumber(ARGV[3])
+	local requested = 1
+
+	local tokens = tonumber(redis.call("get", tokens_key))
+	local last_refill = tonumber(redis.call("get", last_refill_key))
+
+	if tokens == nil then
+		tokens = capacity
+		last_refill = now
+	else
+		local time_passed= now -last_refill
+		tokens= tokens +(tamep)
+	`
 }
