@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	reservationv1 "github.com/Chimera-State/GigaScale/api/proto/reservation/v1"
@@ -26,16 +27,19 @@ func (s *ReservationService) ReserveSeat(ctx context.Context, req *reservationv1
 	seatID := req.GetSeatId()
 	idempotencyKey := req.GetIdempotencyKey()
 
-	println("Gelen Rezervasyon İsteği:")
-	println("- Kullanıcı ID:", userID)
-	println("- Trip ID:", tripID)
-	println("- Koltuk ID:", seatID)
-	println("- Idempotency Key:", idempotencyKey)
+	log.Println("Gelen Rezervasyon İsteği:")
+	log.Printf("- Kullanıcı ID: %s\n", userID)
+	log.Printf("- Trip ID: %s\n", tripID)
+	log.Printf("- Koltuk ID: %s\n", seatID)
+	log.Printf("- Idempotency Key: %s\n", idempotencyKey)
+
+	var isSuccess bool
 
 	if idempotencyKey != "" {
-		isNew, err := s.locker.CheckIdempotency(ctx, "idempotency:"+idempotencyKey, 24*time.Hour)
+		idempotencyKeyRedis := "idempotency:" + idempotencyKey
+		isNew, err := s.locker.CheckIdempotency(ctx, idempotencyKeyRedis, 24*time.Hour)
 		if err != nil {
-			return nil, fmt.Errorf("idempotency denetiminde hata: %w", err)
+			return nil, fmt.Errorf("idempotency kontrol hatası: %w", err)
 		}
 		if !isNew {
 			return &reservationv1.ReserveSeatResponse{
@@ -43,14 +47,21 @@ func (s *ReservationService) ReserveSeat(ctx context.Context, req *reservationv1
 				Message: "Mükerrer İstek (Idempotency): İşleminiz sistemde zaten başarılı şekilde kaydedilmiş.",
 			}, nil
 		}
+
+		// Rollback if the overarching operation is not successful
+		defer func() {
+			if !isSuccess {
+				_ = s.locker.RemoveIdempotency(ctx, idempotencyKeyRedis)
+			}
+		}()
 	}
 
 	lockKey := fmt.Sprintf("lock:reservation:trip:%s:seat:%s", tripID, seatID)
-	lockTTL := 5 * time.Second
+	lockTTL := 2 * time.Second
 
 	retryConfig := redislock.RetryConfig{
 		MaxRetries: 4,
-		RetryDelay: 4 * time.Second,
+		RetryDelay: 100 * time.Millisecond,
 	}
 
 	lockToken, acquired, err := s.locker.AcquireWithRetry(ctx, lockKey, lockTTL, retryConfig)
@@ -67,8 +78,27 @@ func (s *ReservationService) ReserveSeat(ctx context.Context, req *reservationv1
 
 	defer s.locker.Release(ctx, lockKey, lockToken)
 
+	stateKey := fmt.Sprintf("seat:booked:trip:%s:seat:%s", tripID, seatID)
+	bookedState, err := s.locker.GetState(ctx, stateKey)
+	if err != nil {
+		return nil, fmt.Errorf("state kontrol hatası: %w", err)
+	}
+
+	if bookedState != "" {
+		return &reservationv1.ReserveSeatResponse{
+			Success: false,
+			Message: "Locked (Koltuk Başka Bir İşlem Tarafından Rezerve Edildi)",
+		}, nil
+	}
+
+	err = s.locker.SetState(ctx, stateKey, userID, 24*time.Hour)
+	if err != nil {
+		return nil, fmt.Errorf("state yazma hatası: %w", err)
+	}
+
+	isSuccess = true
 	return &reservationv1.ReserveSeatResponse{
 		Success: true,
-		Message: "İşlem Başarılı. Kilit ile güvenli bir şekilde alındı.",
+		Message: "İşlem başarılı. Kilit ile güvenli bir şekilde alındı.",
 	}, nil
 }

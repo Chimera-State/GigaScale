@@ -60,7 +60,7 @@ func TestConcurrentReservationOperations(t *testing.T) {
 			} else {
 				if resp.Success {
 					successCount++
-					t.Logf("🏆 İstek %s -> 200 OK: Koltuk başarıyla alındı!", userID)
+					t.Logf("İstek %s -> 200 OK: Koltuk başarıyla alındı!", userID)
 				} else {
 					t.Errorf("İşlem başarılı gözüküyor ama Success bayrağı false!")
 				}

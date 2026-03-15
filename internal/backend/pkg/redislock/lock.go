@@ -88,3 +88,25 @@ func (l *Locker) CheckIdempotency(ctx context.Context, key string, ttl time.Dura
 	}
 	return resp == "OK", nil
 }
+
+func (l *Locker) RemoveIdempotency(ctx context.Context, key string) error {
+	err := l.client.Del(ctx, key).Err()
+	if err != nil && err != redis.Nil {
+		return err
+	}
+	return nil
+}
+
+func (l *Locker) GetState(ctx context.Context, key string) (string, error) {
+	val, err := l.client.Get(ctx, key).Result()
+	if err == redis.Nil {
+		return "", nil
+	} else if err != nil {
+		return "", err
+	}
+	return val, nil
+}
+
+func (l *Locker) SetState(ctx context.Context, key string, value string, ttl time.Duration) error {
+	return l.client.Set(ctx, key, value, ttl).Err()
+}
