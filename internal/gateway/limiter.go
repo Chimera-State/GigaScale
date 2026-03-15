@@ -62,7 +62,7 @@ func NewIpLimiter(capacity, refillRate float64) *IpLimiter {
 	}
 }
 
-func (ipl *IpLimiter) Allow(ip string) bool {
+func (ipl *IpLimiter) Allow(ctx context.Context, ip string) bool {
 	ipl.mu.Lock()
 	bucket, exists := ipl.buckets[ip]
 	if !exists {
@@ -94,7 +94,7 @@ func (rl *RedisLimiter) Allow(ctx context.Context, ip string) bool {
 	local last_refill_key = KEYS[2]
 
 	local capacity = tonumber(ARGV[1])
-	local refill_rate = to number(ARGV[2])
+	local refill_rate = tonumber(ARGV[2])
 	local now = tonumber(ARGV[3])
 	local requested = 1
 
@@ -106,6 +106,32 @@ func (rl *RedisLimiter) Allow(ctx context.Context, ip string) bool {
 		last_refill = now
 	else
 		local time_passed= now -last_refill
-		tokens= tokens +(tamep)
+		tokens= tokens +(time_passed * refill_rate)
+		if tokens > capacity then
+			tokens = capacity
+		end
+	end
+
+	if tokens>= requested then
+		tokens = tokens - requested
+		redis.call("set",tokens_key, tokens, "EX", 60)
+		redis.call("set", last_refill_key, now, "EX", 60)
+		return 1
+	else 
+		redis.call("set", tokens_key, tokens, "EX", 60)
+		redis.call("set", last_refill_key, last_refill, "EX",60)
+		return 0
+	end
 	`
+	keys := []string{
+		"rate_limit:" + ip + ":tokens",
+		"rate_limit:" + ip + ":last_refill",
+	}
+	now := float64(time.Now().UnixNano()) / 1e9
+	result, err := rl.rdb.Eval(ctx, script, keys, rl.capacity, rl.refillRate, now).Int()
+	if err != nil {
+		return false
+	}
+
+	return result == 1
 }
