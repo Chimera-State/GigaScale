@@ -3,6 +3,7 @@ services:
   # ── Backend (gRPC) ──────────────────────────────────────────────────────────
   # Sadece internal ağda — dışarıya hiçbir port açılmaz (zero-trust)
   backend:
+    image: gigascale/backend:70.5.4
     build:
       context: .
       dockerfile: cmd/backend/Dockerfile
@@ -31,10 +32,12 @@ services:
   # ── Gateway (HTTP → gRPC) ───────────────────────────────────────────────────
 
   gateway:
+
     build:
       # Gateway için   
       context: .
       dockerfile: cmd/gateway/Dockerfile
+    image: gigascale/gateway:70.5.4
     container_name: gigascale-gateway
     restart: unless-stopped
     ports:
@@ -154,6 +157,28 @@ services:
         reservations:
           memory: 128M
 
+  caddy:
+    image: caddy:latest
+    container_name: gigascale-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - internal
+    depends_on:
+      - gateway
+
+
+
+
+
+
+
 # -------------------------------------
 networks:
   internal:
@@ -161,5 +186,7 @@ networks:
     driver: bridge
 
 volumes:
-  redis-data:
   pg-data:
+  redis-data: # Redis verilerini kalıcı tutmak için
+  caddy_data:
+  caddy_config:

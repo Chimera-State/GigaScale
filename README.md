@@ -28,7 +28,16 @@ GIGASCALE/
 ├── tests/
 │   └── postman/
 │       └── gigascale-min.json        # Minimum API test seti
-├── docker-compose.yml                # Tüm altyapıyı ayağa kaldıran dosya
+├── docker-compose.yml                # Uygulama altyapısını ayağa kaldıran dosya
+├── docker-compose-monitoring.yml     # Prometheus + Grafana + node-exporter monitoring stack'i
+├── prometheus.yml                    # Prometheus scrape configuration (gateway, backend, node-exporter)
+├── grafana/
+│   └── provisioning/
+│       ├── datasources/
+│       │   └── prometheus.yml        # Prometheus veri kaynağını otomatik sağlayan config
+│       └── dashboards/
+│           ├── dashboard.yml         # GigaScale dashboard provider tanımı
+│           └── gigascale.json        # GigaScale monitoring dashboard'u
 ├── go.mod                            # Go modül tanımı
 ├── go.sum                            # Go bağımlılık checksum'ları
 └── README.md                         # Bu dosya
@@ -44,6 +53,60 @@ GIGASCALE/
 | Redis        | `gigascale-redis`       | `6379` (internal) | Kalıcı veri deposu |
 | RedisInsight | `gigascale-redisinsight`| `5540` | Redis görsel izleme arayüzü |
 | k6           | `gigascale-k6`          | —      | Yük testi aracı (komut bazlı çalışır) |
+
+---
+
+## Monitoring & Observability (Prometheus + Grafana)
+
+Bu projede altyapı ve Go runtime metriklerini izlemek için ayrı bir monitoring stack tanımlıdır:
+
+- **Prometheus** (`prom/prometheus:latest`) – metrikleri toplar
+- **Grafana** (`grafana/grafana:latest`) – dashboard ve görselleştirme
+- **Node Exporter** (`prom/node-exporter:latest`) – host OS metrikleri (CPU, bellek vb.)
+- **InfluxDB** – k6 yük testleri için zaman serisi depolama
+
+### Monitoring stack'i başlatma
+
+Önce ana uygulama stack'ini ayağa kaldır:
+
+```bash
+docker compose up -d --build
+```
+
+Ardından monitoring stack'i başlat:
+
+```bash
+docker compose -f docker-compose-monitoring.yml up -d
+```
+
+> Not: `docker-compose-monitoring.yml` dosyası, ana stack'in oluşturduğu `gigascale-internal` network'ünü kullanır; bu yüzden önce ana `docker-compose.yml` çalıştırılmalıdır.
+
+### Uygulamalara erişim
+
+- **Gateway API**: `http://localhost:8080`
+- **Prometheus UI**: `http://localhost:9090`
+- **Grafana UI**: `http://localhost:3000`
+  - Anonymous auth açıktır; doğrudan erişebilirsin.
+  - Sol menüden **Dashboards → Browse** altından **GigaScale** klasörünü seçerek `GigaScale - Gateway & Backend` dashboard'unu aç.
+
+### GigaScale dashboard içeriği
+
+`grafana/provisioning/dashboards/gigascale.json` dosyası ile aşağıdaki paneller otomatik olarak sağlanır:
+
+- **Prometheus HTTP RPS**  
+  - Sorgu: `sum(rate(prometheus_http_requests_total[5m]))`
+- **Prometheus HTTP Latency p50/p95/p99**  
+  - Sorgular: `histogram_quantile(0.50|0.95|0.99, sum(rate(prometheus_http_request_duration_seconds_bucket[5m])) by (le))`
+- **Prometheus HTTP Error Rate (5xx oranı)**  
+  - Sorgu: `sum(rate(prometheus_http_requests_total{code=~"5.."}[5m])) / sum(rate(prometheus_http_requests_total[5m]))`
+- **HTTP 429 Rate Limit Oranı (örnek)**  
+  - Sorgu: `sum(rate(prometheus_http_requests_total{code="429"}[5m])) / sum(rate(prometheus_http_requests_total[5m]))`
+- **Go Runtime**  
+  - `go_goroutines` (goroutine sayısı)
+  - `go_memstats_heap_alloc_bytes` (heap kullanımı)
+
+> Not: Şu anda gateway/backend uygulamaları kendi iş metriklerini (`/metrics` endpoint'i, RPS, latency, hata oranı, rate limit metrikleri vb.) expose etmemektedir.  
+> Backend/gateway ekipleri Prometheus client entegrasyonunu eklediğinde, bu dashboard üzerindeki PromQL sorguları ilgili metrik isimleriyle güncellenerek uygulama seviyesinde detaylı gözlemlenebilirlik sağlanabilir.
 
 ---
 
