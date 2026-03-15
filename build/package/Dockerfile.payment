@@ -1,0 +1,32 @@
+# Stage 1: Build stage
+FROM golang:1.25-alpine AS builder
+
+# Calisma dizinini projenin kök dizini yapalim
+WORKDIR /app
+
+# Bagimliliklari kopyalayalim ve indirelim
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Tum kodlari kopyalayalim
+COPY . .
+
+# go build ile payment servisini derleme (CGO_ENABLED=0 statik binary icin)
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o payment-service ./cmd/payment
+
+# Stage 2: Final imajı
+FROM alpine:3.19
+
+WORKDIR /app
+
+# alpine bazli hafif ortamda gerekli seftifikalari aliyoruz (dış isteklere güvenmek için)
+RUN apk --no-cache add ca-certificates
+
+# Builder asamasindan olusturdugumuz statik binary dosyasini kopyaliyoruz
+COPY --from=builder /app/payment-service .
+
+# Servisimizin dinledigi varsayilan portu belirtiyoruz
+EXPOSE 50052
+
+# Servisi calistiralim
+CMD ["./payment-service"]

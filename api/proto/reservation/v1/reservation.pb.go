@@ -24,7 +24,7 @@ const (
 type ReserveSeatRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	UserId         string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	TripId         string                 `protobuf:"bytes,2,opt,name=trip_id,json=tripId,proto3" json:"trip_id,omitempty"` // setnx için
+	TripId         string                 `protobuf:"bytes,2,opt,name=trip_id,json=tripId,proto3" json:"trip_id,omitempty"`
 	SeatId         string                 `protobuf:"bytes,3,opt,name=seat_id,json=seatId,proto3" json:"seat_id,omitempty"`
 	IdempotencyKey string                 `protobuf:"bytes,4,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
 	unknownFields  protoimpl.UnknownFields
@@ -91,8 +91,8 @@ func (x *ReserveSeatRequest) GetIdempotencyKey() string {
 
 type ReserveSeatResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"` //koltuk dolu mu boş mu
-	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`  //başarılı veya koltuk dolu
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -141,6 +141,102 @@ func (x *ReserveSeatResponse) GetMessage() string {
 	return ""
 }
 
+type CancelRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	IdempotencyKey string                 `protobuf:"bytes,1,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *CancelRequest) Reset() {
+	*x = CancelRequest{}
+	mi := &file_api_proto_reservation_v1_reservation_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CancelRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CancelRequest) ProtoMessage() {}
+
+func (x *CancelRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_reservation_v1_reservation_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CancelRequest.ProtoReflect.Descriptor instead.
+func (*CancelRequest) Descriptor() ([]byte, []int) {
+	return file_api_proto_reservation_v1_reservation_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *CancelRequest) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
+	}
+	return ""
+}
+
+type CancelResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CancelResponse) Reset() {
+	*x = CancelResponse{}
+	mi := &file_api_proto_reservation_v1_reservation_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CancelResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CancelResponse) ProtoMessage() {}
+
+func (x *CancelResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_reservation_v1_reservation_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CancelResponse.ProtoReflect.Descriptor instead.
+func (*CancelResponse) Descriptor() ([]byte, []int) {
+	return file_api_proto_reservation_v1_reservation_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *CancelResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *CancelResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
 var File_api_proto_reservation_v1_reservation_proto protoreflect.FileDescriptor
 
 const file_api_proto_reservation_v1_reservation_proto_rawDesc = "" +
@@ -153,9 +249,15 @@ const file_api_proto_reservation_v1_reservation_proto_rawDesc = "" +
 	"\x0fidempotency_key\x18\x04 \x01(\tR\x0eidempotencyKey\"I\n" +
 	"\x13ReserveSeatResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage2n\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"8\n" +
+	"\rCancelRequest\x12'\n" +
+	"\x0fidempotency_key\x18\x01 \x01(\tR\x0eidempotencyKey\"D\n" +
+	"\x0eCancelResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage2\xc4\x01\n" +
 	"\x12ReservationService\x12X\n" +
-	"\vReserveSeat\x12\".reservation.v1.ReserveSeatRequest\x1a#.reservation.v1.ReserveSeatResponse\"\x00BIZGgithub.com/Chimera-State/GigaScale/api/proto/reservation/v1;reservationb\x06proto3"
+	"\vReserveSeat\x12\".reservation.v1.ReserveSeatRequest\x1a#.reservation.v1.ReserveSeatResponse\"\x00\x12T\n" +
+	"\x11CancelReservation\x12\x1d.reservation.v1.CancelRequest\x1a\x1e.reservation.v1.CancelResponse\"\x00BIZGgithub.com/Chimera-State/GigaScale/api/proto/reservation/v1;reservationb\x06proto3"
 
 var (
 	file_api_proto_reservation_v1_reservation_proto_rawDescOnce sync.Once
@@ -169,16 +271,20 @@ func file_api_proto_reservation_v1_reservation_proto_rawDescGZIP() []byte {
 	return file_api_proto_reservation_v1_reservation_proto_rawDescData
 }
 
-var file_api_proto_reservation_v1_reservation_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_api_proto_reservation_v1_reservation_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_api_proto_reservation_v1_reservation_proto_goTypes = []any{
 	(*ReserveSeatRequest)(nil),  // 0: reservation.v1.ReserveSeatRequest
 	(*ReserveSeatResponse)(nil), // 1: reservation.v1.ReserveSeatResponse
+	(*CancelRequest)(nil),       // 2: reservation.v1.CancelRequest
+	(*CancelResponse)(nil),      // 3: reservation.v1.CancelResponse
 }
 var file_api_proto_reservation_v1_reservation_proto_depIdxs = []int32{
 	0, // 0: reservation.v1.ReservationService.ReserveSeat:input_type -> reservation.v1.ReserveSeatRequest
-	1, // 1: reservation.v1.ReservationService.ReserveSeat:output_type -> reservation.v1.ReserveSeatResponse
-	1, // [1:2] is the sub-list for method output_type
-	0, // [0:1] is the sub-list for method input_type
+	2, // 1: reservation.v1.ReservationService.CancelReservation:input_type -> reservation.v1.CancelRequest
+	1, // 2: reservation.v1.ReservationService.ReserveSeat:output_type -> reservation.v1.ReserveSeatResponse
+	3, // 3: reservation.v1.ReservationService.CancelReservation:output_type -> reservation.v1.CancelResponse
+	2, // [2:4] is the sub-list for method output_type
+	0, // [0:2] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
@@ -195,7 +301,7 @@ func file_api_proto_reservation_v1_reservation_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_proto_reservation_v1_reservation_proto_rawDesc), len(file_api_proto_reservation_v1_reservation_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
