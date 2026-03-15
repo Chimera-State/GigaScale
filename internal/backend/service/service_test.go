@@ -1,4 +1,5 @@
 package service
+
 import (
 	"context"
 	"fmt"
@@ -7,6 +8,7 @@ import (
 	"sync"
 	"testing"
 	"time"
+
 	reservationv1 "github.com/Chimera-State/GigaScale/api/proto/reservation/v1"
 	"github.com/Chimera-State/GigaScale/internal/backend/pkg/db"
 	"github.com/Chimera-State/GigaScale/internal/backend/pkg/redislock"
@@ -18,6 +20,7 @@ import (
 	testredis "github.com/testcontainers/testcontainers-go/modules/redis"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
+
 func TestConcurrentReservationOperationsRealLock(t *testing.T) {
 	ctx := context.Background()
 	redisContainer, err := testredis.Run(ctx, "redis:alpine")
@@ -136,38 +139,3 @@ func TestConcurrentReservationOperationsRealLock(t *testing.T) {
 		t.Logf("DB Doğrulaması Başarılı: Veritabanında sadece %d adet kayıt var.", dbCount)
 	}
 }
-<<<<<<< HEAD
-
-type APIError struct {
-	StatusCode int
-	Message    string
-}
-
-func (e *APIError) Error() string {
-	return e.Message
-}
-
-var mockSeatTaken bool
-var mockMu sync.Mutex
-
-func mockReserveSeat(req *reservationv1.ReserveSeatRequest) (*reservationv1.ReserveSeatResponse, error) {
-	mockMu.Lock()
-	defer mockMu.Unlock()
-
-	time.Sleep(5 * time.Millisecond)
-
-	if mockSeatTaken {
-		return nil, &APIError{
-			StatusCode: 423,
-			Message:    "Locked (Koltuk başka bir işleme tahsis edildi)",
-		}
-	}
-
-	mockSeatTaken = true
-	return &reservationv1.ReserveSeatResponse{
-		Success: true,
-		Message: "OK (Koltuk başarıyla rezerve edildi)",
-	}, nil
-}
-=======
->>>>>>> origin/fetaure/sprint3
