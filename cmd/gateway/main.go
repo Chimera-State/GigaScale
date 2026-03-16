@@ -43,11 +43,13 @@ func healthHandler(rdb *redis.Client, conn *grpc.ClientConn) http.HandlerFunc {
 		}
 
 		if conn != nil {
-			if conn.GetState() != connectivity.Ready {
+			state := conn.GetState()
+			if state != connectivity.Ready && state != connectivity.Idle {
 				result["backend"] = "error"
 				result["status"] = "degraded"
 			}
 		}
+
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(result)

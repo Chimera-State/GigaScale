@@ -1,42 +1,35 @@
 services:
 
   # ── Backend (gRPC) ──────────────────────────────────────────────────────────
-  # Sadece internal ağda — dışarıya hiçbir port açılmaz (zero-trust)
   backend:
     build:
-      context: . # Projenin kök dizini
-      dockerfile: cmd/backend/Dockerfile # Projede DockerFile yolunu belirtiyoruz
-    container_name: gigascale-backend # Container ismini belirtiyoruz
-    restart: unless-stopped # Container durdurulursa otomatik başlat
+      context: .
+      dockerfile: cmd/backend/Dockerfile
+    container_name: gigascale-backend
+    restart: unless-stopped
     networks:
-      - internal # ağ bağlanma kısmında dışarıya kapalı port açılmaz(zero trust)
+      - internal
     env_file:
       - .env
     depends_on:
-      - redis
-      - postgres
-    
-  migrate:
-    image: migrate/migrate
-    container_name: gigascale-migrate
-    volumes:
-      - ./migrations:/migrations
-    networks:
-      - internal
-    command: ["-path", "file://migrations", "-database", "${DATABASE_URL}", "up"]
-    depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+      migration:
+        condition: service_completed_successfully # Tablolar oluşmadan backend açılmaz
 
-migration:
+  # ── Database Migration ──────────────────────────────────────────────────────
+  migration:
     image: migrate/migrate
     container_name: gigascale-migration
     networks:
       - internal
+    env_file:
+      - .env
     volumes:
-      - ./migrations:/migrations
+      - ./migrations:/migrations:ro
     command:
       - -path
-      - /migrations
+      - migrations 
       - -database
       - postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
       - up
@@ -44,11 +37,10 @@ migration:
       postgres:
         condition: service_healthy
 
+
   # ── Gateway (HTTP → gRPC) ───────────────────────────────────────────────────
-  # Dışarıdan gelen HTTP isteklerini alır, internal ağda backend'e iletir
   gateway:
     build:
-      # Gateway için   
       context: .
       dockerfile: cmd/gateway/Dockerfile
     container_name: gigascale-gateway
@@ -60,7 +52,7 @@ migration:
     networks:
       - internal
     depends_on:
-      - backend # backend ayağa kalkmadan gateway ayağa kalkmasın
+      - backend
 
   # ── PostgreSQL ────────────────────────────────────────────────────────────────
   postgres:
@@ -73,6 +65,13 @@ migration:
       - postgres-data:/var/lib/postgresql/data
     networks:
       - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s # Garanti olsun diye 15 saniyeye çıkardık
+
 
   # ── Redis ─────────────────────────────────────────────────────────────────────
   redis:
@@ -87,38 +86,37 @@ migration:
       - internal
     restart: unless-stopped
 
-  # ── RedisInsight (Redis GUI) ───────────────────────────────────────────────────
+  # ── RedisInsight (Redis GUI) ──────────────────────────────────────────────────
   redisinsight:
     image: redis/redisinsight:latest
     container_name: gigascale-redisinsight
     restart: unless-stopped
     ports:
-      - "5540:5540" # Tarayıcıdan http://localhost:5540 ile erişilir
+      - "5540:5540"
     networks:
-      - internal # Redis ile aynı ağda olmalı ki bağlanabilsin
+      - internal
     depends_on:
-      - redis # Redis ayağa kalkmadan RedisInsight başlamasın
+      - redis
 
+  # ── Load Testing (k6) ─────────────────────────────────────────────────────────
   k6:
-    image: grafana/k6:latest # tüm testleri burada çalıştıracağız
+    image: grafana/k6:latest
     container_name: gigascale-k6
     depends_on:
       - gateway
     networks:
       - internal
     volumes:
-      # volumes, container'lar silinse bile verilerin kalmasını sağlar
       - ./k6:/scripts
     working_dir: /scripts
     entrypoint: [ "k6" ]
 
-# -------------------------------------
+# ── Networks & Volumes ────────────────────────────────────────────────────────
 networks:
   internal:
     name: gigascale-internal
     driver: bridge
 
 volumes:
-  redis-data: # Redis verilerini kalıcı tutmak için
-  postgres-data: # Veritabanı verilerini kalıcı tutmak için
-
+  redis-data:
+  postgres-data:
