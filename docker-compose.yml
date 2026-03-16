@@ -15,6 +15,19 @@ services:
     depends_on:
       - redis
       - postgres
+    
+  migrate:
+    image: migrate/migrate
+    container_name: gigascale-migrate
+    volumes:
+      - ./migrations:/migrations
+    networks:
+      - internal
+    command: ["-path", "file://migrations", "-database", "${DATABASE_URL}", "up"]
+    depends_on:
+      - postgres
+
+
 
   # ── Gateway (HTTP → gRPC) ───────────────────────────────────────────────────
   # Dışarıdan gelen HTTP isteklerini alır, internal ağda backend'e iletir
@@ -93,3 +106,4 @@ networks:
 volumes:
   redis-data: # Redis verilerini kalıcı tutmak için
   postgres-data: # Veritabanı verilerini kalıcı tutmak için
+
