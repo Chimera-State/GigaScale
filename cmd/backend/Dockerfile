@@ -8,13 +8,11 @@ WORKDIR /app
 COPY go.mod go.sum  ./
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
 
-# Kaynak kodu kopyala ve derle
 COPY . .
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     CGO_ENABLED=0 GOOS=linux go build -o backend ./cmd/backend
 
-# AŞaam 2 : çalıştırma  
 FROM alpine:3.19
 
 RUN wget -qO /bin/grpc_health_probe https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/v0.4.25/grpc_health_probe-linux-amd64 \
@@ -23,9 +21,7 @@ RUN wget -qO /bin/grpc_health_probe https://github.com/grpc-ecosystem/grpc-healt
 
 WORKDIR /app
 
-# Sadece binary'yi al, binary image boyutunu küçültmek için
 COPY --from=builder /app/backend .
-
 
 EXPOSE 50051
 

@@ -44,10 +44,12 @@ services:
       - "8080"
     environment:
       - BACKEND_ADDR=backend:50051
+      - REDIS_ADDR=redis:6379
     networks:
       - internal
     depends_on:
       - backend
+      - redis
     healthcheck:
       test: [ "CMD", "wget", "-q", "--spider", "http://localhost:8080/health" ]
       interval: 30s

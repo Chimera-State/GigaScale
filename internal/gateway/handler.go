@@ -28,15 +28,12 @@ func (s *Server) HandleReserve(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Data Validation Error: "+err.Error(), http.StatusBadRequest)
 		return
 	}
-
-	//mapping
 	grpcReq := &pb.ReserveSeatRequest{
 		UserId:         req.UserID,
 		TripId:         req.TripID,
 		SeatId:         req.SeatID,
 		IdempotencyKey: req.IdempotencyKey,
 	}
-
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
@@ -45,13 +42,10 @@ func (s *Server) HandleReserve(w http.ResponseWriter, r *http.Request) {
 		s.handleGRPCError(w, err)
 		return
 	}
-
 	httpResp := ReserveHTTPResponse{
 		Success: resp.Success,
 		Message: resp.Message,
 	}
-
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(httpResp)
-
 }
