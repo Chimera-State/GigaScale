@@ -27,7 +27,22 @@ services:
     depends_on:
       - postgres
 
-
+migration:
+    image: migrate/migrate
+    container_name: gigascale-migration
+    networks:
+      - internal
+    volumes:
+      - ./migrations:/migrations
+    command:
+      - -path
+      - /migrations
+      - -database
+      - postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+      - up
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   # ── Gateway (HTTP → gRPC) ───────────────────────────────────────────────────
   # Dışarıdan gelen HTTP isteklerini alır, internal ağda backend'e iletir
