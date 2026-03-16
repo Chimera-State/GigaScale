@@ -127,6 +127,7 @@ services:
 
   # ── Payment Service (gRPC) ────────────────────────────────────────────────
   payment:
+    profiles: ["payment"]
     build:
       context: .
       dockerfile: cmd/payment/Dockerfile
