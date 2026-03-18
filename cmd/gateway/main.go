@@ -50,7 +50,6 @@ func healthHandler(rdb *redis.Client, conn *grpc.ClientConn) http.HandlerFunc {
 			}
 		}
 
-
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(result)
 	}
@@ -89,7 +88,7 @@ func main() {
 
 	//dp injection
 	v := validator.New()
-	srv := gateway.NewServer(client, limiter, v)
+	srv := gateway.NewServer(client, limiter, v, rdb)
 
 	mux := http.NewServeMux()
 	secureHandler := srv.RateLimiter(http.HandlerFunc(srv.HandleReserve))
@@ -98,8 +97,11 @@ func main() {
 	mux.HandleFunc("GET /health", healthHandler(rdb, conn))
 
 	httpServer := &http.Server{
-		Addr:    serverPort,
-		Handler: mux,
+		Addr:         serverPort,
+		Handler:      mux,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  120 * time.Second,
 	}
 
 	go func() {

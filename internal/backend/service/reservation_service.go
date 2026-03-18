@@ -1,19 +1,26 @@
 package service
+
 import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"time"
+
 	reservationv1 "github.com/Chimera-State/GigaScale/api/proto/reservation/v1"
 	"github.com/Chimera-State/GigaScale/internal/backend/pkg/redislock"
 	"github.com/Chimera-State/GigaScale/internal/backend/repository"
 	"github.com/google/uuid"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
+
 type ReservationService struct {
 	reservationv1.UnimplementedReservationServiceServer
 	locker *redislock.Locker
 	repo   repository.ReservationRepository
 }
+
 func NewReservationService(locker *redislock.Locker, repo repository.ReservationRepository) *ReservationService {
 	return &ReservationService{
 		locker: locker,
@@ -80,16 +87,7 @@ func (s *ReservationService) ReserveSeat(ctx context.Context, req *reservationv1
 	if err != nil {
 		return nil, fmt.Errorf("geçersiz trip_id formati: %w", err)
 	}
-	exists, err := s.repo.Exists(ctx, tid, seatID)
-	if err != nil {
-		return nil, fmt.Errorf("veritabanı uygunluk kontrolü hatası: %w", err)
-	}
-	if exists {
-		return &reservationv1.ReserveSeatResponse{
-			Success: false,
-			Message: "Bu koltuk maalesef satılmış.",
-		}, nil
-	}
+
 	newReservation := &repository.Reservation{
 		ID:             uuid.New(),
 		UserID:         uid,
@@ -100,9 +98,14 @@ func (s *ReservationService) ReserveSeat(ctx context.Context, req *reservationv1
 		Status:         "confirmed",
 		CreatedAt:      time.Now(),
 	}
+
 	if err := s.repo.Create(ctx, newReservation); err != nil {
-		return nil, fmt.Errorf("rezervasyon kaydedilemedi: %w", err)
+		if strings.Contains(err.Error(), "ALREADY_BOOKED") {
+			return nil, status.Error(codes.AlreadyExists, "Bu koltuk maalesef çoktan satıldı.")
+		}
+		return nil, status.Errorf(codes.Internal, "Beklenmedik veritabanı hatası: %v", err)
 	}
+
 	err = s.locker.SetState(ctx, stateKey, userID, 24*time.Hour)
 	if err != nil {
 		return nil, fmt.Errorf("state yazma hatası: %w", err)

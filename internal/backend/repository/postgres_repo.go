@@ -1,10 +1,14 @@
 package repository
+
 import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
+
 	"github.com/google/uuid"
 )
+
 type PostgresReservationRepository struct {
 	db                   *sql.DB
 	stmtCreate           *sql.Stmt
@@ -12,6 +16,7 @@ type PostgresReservationRepository struct {
 	stmtExists           *sql.Stmt
 	stmtCancel           *sql.Stmt
 }
+
 func NewPostgresReservationRepository(db *sql.DB) (*PostgresReservationRepository, error) {
 	stmtCreate, err := db.Prepare(`
 		INSERT INTO reservations(id, user_id, trip_id, seat_id, idempotency_key, payment_id, amount, status, created_at)
@@ -54,7 +59,8 @@ func NewPostgresReservationRepository(db *sql.DB) (*PostgresReservationRepositor
 	}, nil
 }
 func (r *PostgresReservationRepository) Create(ctx context.Context, req *Reservation) error {
-	_, err := r.stmtCreate.ExecContext(ctx,
+	_, err := r.stmtCreate.ExecContext(
+		ctx,
 		req.ID,
 		req.UserID,
 		req.TripID,
@@ -66,10 +72,14 @@ func (r *PostgresReservationRepository) Create(ctx context.Context, req *Reserva
 		req.CreatedAt,
 	)
 	if err != nil {
-		return fmt.Errorf("create reservation sql hatası: %w", err)
+		if strings.Contains(err.Error(), "idx_reservations_trip_seat_confirmed") || strings.Contains(err.Error(), "23505") {
+			return fmt.Errorf("ALREADY_BOOKED: benzersizlik ihlali")
+		}
+		return fmt.Errorf("sql insert hatası: %w", err)
 	}
 	return nil
 }
+
 func (r *PostgresReservationRepository) GetByIdempotencyKey(ctx context.Context, userID uuid.UUID, key string) (*Reservation, error) {
 	var res Reservation
 	err := r.stmtGetByIdempotency.QueryRowContext(ctx, userID, key).Scan(
