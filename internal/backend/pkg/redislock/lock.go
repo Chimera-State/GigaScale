@@ -18,7 +18,6 @@ func NewLocker(client *redis.Client) *Locker {
 	}
 }
 
-// Daha net ve acımasız kilit alma operasyonu
 func (l *Locker) Acquire(ctx context.Context, key string, ttl time.Duration) (string, bool, error) {
 	token := uuid.New().String()
 	acquired, err := l.client.SetNX(ctx, key, token, ttl).Result()
@@ -70,7 +69,6 @@ func (l *Locker) Release(ctx context.Context, key string, token string) error {
 	return nil
 }
 
-// Gereksiz kontrollerden arındırılmış, doğrudan sonuca giden kontrol
 func (l *Locker) CheckIdempotency(ctx context.Context, key string, ttl time.Duration) (bool, error) {
 	return l.client.SetNX(ctx, key, "processed", ttl).Result()
 }
