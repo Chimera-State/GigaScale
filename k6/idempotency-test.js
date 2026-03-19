@@ -13,8 +13,8 @@ export default function () {
   const url = 'http://gateway:8080/api/v1/reserve';
 
   const sharedUserId = generateAlphanumID();
-  const sharedTripId = generateAlphanumID();
-  const sharedSeatId = generateAlphanumID();
+  const sharedTripId = "550e8400-e29b-41d4-a716-446655440000"; 
+  const sharedSeatId = "12A"; 
   const sharedIdempotencyKey = uuidv4();
 
   const payload = JSON.stringify({
@@ -41,18 +41,14 @@ export default function () {
   const responses = http.batch(requests);
 
   let successCount = 0;
-  let conflictCount = 0;
 
   responses.forEach((res) => {
-    if (res.status === 200 || res.status === 201) {
+    if (res.status === 200) {
       successCount++;
-    } else if (res.status === 409) {
-      conflictCount++;
     }
   });
 
   check(responses, {
-    'Sadece 1 istek basarili oldu (200/201)': () => successCount === 1,
-    'Tam 9 istek zaten islendi (409) dondu': () => conflictCount === 9,
+    'Tum 10 istek 200 (Basarili veya Idempotent) dondu': () => successCount === 10,
   });
 }

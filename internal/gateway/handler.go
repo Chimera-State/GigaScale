@@ -1,6 +1,5 @@
 package gateway
 
-//handler.go
 import (
 	"context"
 	"encoding/json"
@@ -10,7 +9,6 @@ import (
 
 	pb "github.com/Chimera-State/GigaScale/api/proto/reservation/v1"
 	"github.com/google/uuid"
-	"github.com/redis/go-redis/v9"
 )
 
 func (s *Server) HandleReserve(w http.ResponseWriter, r *http.Request) {
@@ -34,26 +32,8 @@ func (s *Server) HandleReserve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	lockKey := "lock:reservation:trip:" + req.TripID + ":seat:" + req.SeatID
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
-
-	err = s.rdb.SetArgs(ctx, lockKey, req.UserID, redis.SetArgs{
-		Mode: "NX",
-		TTL:  15 * time.Second,
-	}).Err()
-
-	if err != nil {
-		if err == redis.Nil {
-			log.Printf("[TRACE: %s] [BLOCKED] Seat is already locked.", traceID)
-			w.WriteHeader(http.StatusConflict)
-			json.NewEncoder(w).Encode(map[string]string{"error": "Seat is busy"})
-			return
-		}
-		log.Printf("[TRACE: %s] [ERROR] Redis Connection Error: %s", traceID, err)
-		http.Error(w, "Service Unavailable", 500)
-	}
-	defer s.rdb.Del(context.Background(), lockKey)
 
 	grpcReq := &pb.ReserveSeatRequest{
 		UserId:         req.UserID,
@@ -67,11 +47,13 @@ func (s *Server) HandleReserve(w http.ResponseWriter, r *http.Request) {
 		s.handleGRPCError(w, err)
 		return
 	}
+
 	if !resp.Success {
 		w.WriteHeader(http.StatusConflict)
 	} else {
 		w.WriteHeader(http.StatusOK)
 	}
+
 	httpResp := ReserveHTTPResponse{
 		Success: resp.Success,
 		Message: resp.Message,

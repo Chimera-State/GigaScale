@@ -88,6 +88,8 @@ func (s *ReservationService) ReserveSeat(ctx context.Context, req *reservationv1
 		return nil, fmt.Errorf("geçersiz trip_id formati: %w", err)
 	}
 
+	// ... (Önceki kısımlar aynı)
+
 	newReservation := &repository.Reservation{
 		ID:             uuid.New(),
 		UserID:         uid,
@@ -100,6 +102,8 @@ func (s *ReservationService) ReserveSeat(ctx context.Context, req *reservationv1
 	}
 
 	if err := s.repo.Create(ctx, newReservation); err != nil {
+		log.Printf("[DATABASE ERROR] Trip: %s, Seat: %s, Error: %v", tripID, seatID, err)
+
 		if strings.Contains(err.Error(), "ALREADY_BOOKED") {
 			return nil, status.Error(codes.AlreadyExists, "Bu koltuk maalesef çoktan satıldı.")
 		}
@@ -107,6 +111,7 @@ func (s *ReservationService) ReserveSeat(ctx context.Context, req *reservationv1
 	}
 
 	err = s.locker.SetState(ctx, stateKey, userID, 24*time.Hour)
+
 	if err != nil {
 		return nil, fmt.Errorf("state yazma hatası: %w", err)
 	}
