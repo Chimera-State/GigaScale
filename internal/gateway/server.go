@@ -11,11 +11,11 @@ type Server struct {
 	reserveClient pb.ReservationServiceClient
 	validator     *validator.Validate
 	limiter       RateLimiter
-	rdb           *redis.Client
+	rdb           redis.UniversalClient
 }
 
 // constructor
-func NewServer(client pb.ReservationServiceClient, limiter RateLimiter, v *validator.Validate, rdb *redis.Client) *Server {
+func NewServer(client pb.ReservationServiceClient, limiter RateLimiter, v *validator.Validate, rdb redis.UniversalClient) *Server {
 	return &Server{
 		reserveClient: client,
 		validator:     v,

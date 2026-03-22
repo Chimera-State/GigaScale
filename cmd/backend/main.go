@@ -21,7 +21,7 @@ import (
 
 func main() {
 
-	redisclient.NewRedisClient()
+	redisclient.InitRedisCluster()
 	redisclient.HealthCheck(context.Background())
 
 	lis, err := net.Listen("tcp", ":50051")
@@ -36,12 +36,15 @@ func main() {
 		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 		grpc.UnaryInterceptor(loggingInterceptor),
 	)
-	redisAddr := os.Getenv("REDIS_ADDR")
-	if redisAddr == "" {
-		redisAddr = "redis:6379"
+	clusterAddrs := []string{
+		"redis-node-1:6379", "redis-node-2:6379", "redis-node-3:6379",
+		"redis-node-4:6379", "redis-node-5:6379", "redis-node-6:6379",
 	}
-	rdb := redis.NewClient(&redis.Options{
-		Addr: redisAddr,
+
+	rdb := redis.NewClusterClient(&redis.ClusterOptions{
+		Addrs:        clusterAddrs,
+		MaxRedirects: 8,
+		ReadOnly:     false,
 	})
 	locker := redislock.NewLocker(rdb)
 	databaseURL := os.Getenv("DATABASE_URL")

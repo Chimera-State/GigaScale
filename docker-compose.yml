@@ -5,7 +5,6 @@ services:
     build:
       context: .
       dockerfile: cmd/backend/Dockerfile
-    container_name: gigascale-backend
     restart: unless-stopped
     networks:
       - internal
@@ -43,10 +42,9 @@ services:
     build:
       context: .
       dockerfile: cmd/gateway/Dockerfile
-    container_name: gigascale-gateway
     restart: unless-stopped
-    ports:
-      - "8080:8080"
+    #ports:
+      #- "8080:8080"
     env_file:
       - .env
     networks:
@@ -74,18 +72,59 @@ services:
 
 
   # ── Redis ─────────────────────────────────────────────────────────────────────
-  redis:
-    image: redis:alpine
-    container_name: gigascale-redis
-    command: --appendonly yes
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis-data:/data
+  # ── Redis Cluster Nodes (3 Master + 3 Replica) ──────────────────────────────
+  redis-node-1:
+    image: redis:7-alpine
+    command: redis-server --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes
     networks:
       - internal
-    restart: unless-stopped
 
+  redis-node-2:
+    image: redis:7-alpine
+    command: redis-server --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes
+    networks:
+      - internal
+
+  redis-node-3:
+    image: redis:7-alpine
+    command: redis-server --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes
+    networks:
+      - internal
+
+  redis-node-4:
+    image: redis:7-alpine
+    command: redis-server --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes
+    networks:
+      - internal
+
+  redis-node-5:
+    image: redis:7-alpine
+    command: redis-server --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes
+    networks:
+      - internal
+
+  redis-node-6:
+    image: redis:7-alpine
+    command: redis-server --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes
+    networks:
+      - internal
+
+  redis-cluster-creator:
+    image: redis:7-alpine
+    networks:
+      - internal
+    depends_on:
+      - redis-node-1
+      - redis-node-2
+      - redis-node-3
+      - redis-node-4
+      - redis-node-5
+      - redis-node-6
+    entrypoint: >
+      sh -c "sleep 5 && echo 'yes' | redis-cli --cluster create 
+      redis-node-1:6379 redis-node-2:6379 redis-node-3:6379 
+      redis-node-4:6379 redis-node-5:6379 redis-node-6:6379 
+      --cluster-replicas 1"
   # ── RedisInsight (Redis GUI) ──────────────────────────────────────────────────
   redisinsight:
     image: redis/redisinsight:latest
@@ -96,7 +135,7 @@ services:
     networks:
       - internal
     depends_on:
-      - redis
+      - redis-node-1
 
   # ── Load Testing (k6) ─────────────────────────────────────────────────────────
   k6:

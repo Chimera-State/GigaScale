@@ -9,10 +9,10 @@ import (
 )
 
 type Locker struct {
-	client *redis.Client
+	client redis.UniversalClient
 }
 
-func NewLocker(client *redis.Client) *Locker {
+func NewLocker(client redis.UniversalClient) *Locker {
 	return &Locker{
 		client: client,
 	}

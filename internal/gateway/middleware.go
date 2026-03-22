@@ -1,11 +1,9 @@
 package gateway
 
 import (
-	"log"
 	"net"
 	"net/http"
 	"strings"
-	"time"
 )
 
 // ratelimit anonim önleme
@@ -35,11 +33,11 @@ func clientIP(r *http.Request) string {
 }
 
 func (h *rateLimitHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	start := time.Now()
+	//  start := time.Now()
 
 	ip := clientIP(r)
 
-	log.Printf("[REQUESTED] ip=%s method=%s path=%s time=%s", ip, r.Method, r.URL.Path, start.Format(time.RFC3339))
+	//  log.Printf("[REQUESTED] ip=%s method=%s path=%s time=%s", ip, r.Method, r.URL.Path, start.Format(time.RFC3339))
 
 	ctx := r.Context()
 	isAllowed := h.server.limiter.Allow(ctx, ip)

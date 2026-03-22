@@ -3,28 +3,25 @@ package redisclient
 import (
 	"context"
 	"log"
-	"os"
 
 	"github.com/redis/go-redis/v9"
 )
 
-var RedisClient *redis.Client // Redis bağlantısı
+var RedisClient redis.UniversalClient // Redis bağlantısı
 
-func NewRedisClient(){
-	addr := os.Getenv("REDIS_ADDR")
-	if addr == "" { 
-		addr = "localhost:6379" // Eğer REDIS_ADDR ortam değişkeni yoksa default olarak localhost:6379 kullanılır.
+func InitRedisCluster(){
+	clusterAddrs := []string{
+		"redis-node-1:6379", "redis-node-2:6379", "redis-node-3:6379",
+		"redis-node-4:6379", "redis-node-5:6379", "redis-node-6:6379",
 	}
 
-	RedisClient = redis.NewClient(&redis.Options{ 
-		Addr: addr, 
-		PoolSize: 10,
-		MinIdleConns: 5,
-		MaxRetries: 3,
+	RedisClient = redis.NewClusterClient(&redis.ClusterOptions{ 
+		Addrs:        clusterAddrs,
+		MaxRedirects: 8,
+		ReadOnly:     false,
 	})
 
-	log.Println("Redis'e başarıyla oluşturuldu:",addr)
-
+	log.Println("Redis Cluster başarıyla oluşturuldu")
 
 }
 
