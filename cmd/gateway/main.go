@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -27,7 +28,7 @@ func getEnv(key, fallback string) string {
 	return fallback
 }
 
-func healthHandler(rdb *redis.Client, conn *grpc.ClientConn) http.HandlerFunc {
+func healthHandler(rdb redis.UniversalClient, conn *grpc.ClientConn) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		result := map[string]string{
 			"status":  "ok",
@@ -60,9 +61,15 @@ func main() {
 	backendAddr := getEnv("BACKEND_ADDR", "localhost:50051")
 	serverPort := getEnv("SERVER_PORT", ":8080")
 
-	reddisAddr := getEnv("REDIS_ADDR", "localhost:6379")
-	rdb := redis.NewClient(&redis.Options{
-		Addr: reddisAddr,
+	clusterAddrs := []string{
+		"redis-node-1:6379", "redis-node-2:6379", "redis-node-3:6379",
+		"redis-node-4:6379", "redis-node-5:6379", "redis-node-6:6379",
+	}
+
+	rdb := redis.NewClusterClient(&redis.ClusterOptions{
+		Addrs:        clusterAddrs,
+		MaxRedirects: 8, // tolerance
+		ReadOnly:     false,
 	})
 	ctx := context.Background()
 	if err := rdb.Ping(ctx).Err(); err != nil {
@@ -70,7 +77,10 @@ func main() {
 	}
 	defer rdb.Close()
 	//gateway conn
-	conn, err := grpc.NewClient(backendAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient(
+		backendAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`))
 	if err != nil {
 		log.Fatalf("Could not connect to the backend %v", err)
 	}
@@ -78,7 +88,7 @@ func main() {
 
 	client := pb.NewReservationServiceClient(conn)
 
-	useRedisLimiter := getEnv("USE_REDIS_LIMITER", "false") == "true"
+	useRedisLimiter := strings.TrimSpace(getEnv("USE_REDIS_LIMITER", "false")) == "true"
 	var limiter gateway.RateLimiter
 	if useRedisLimiter {
 		limiter = gateway.NewRedisLimiter(rdb, 10, 2)

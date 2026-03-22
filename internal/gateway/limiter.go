@@ -75,12 +75,12 @@ func (ipl *IpLimiter) Allow(ctx context.Context, ip string) bool {
 }
 
 type RedisLimiter struct {
-	rdb        *redis.Client
+	rdb        redis.UniversalClient
 	capacity   float64
 	refillRate float64
 }
 
-func NewRedisLimiter(rdb *redis.Client, cap, rate float64) *RedisLimiter {
+func NewRedisLimiter(rdb redis.UniversalClient, cap, rate float64) *RedisLimiter {
 	return &RedisLimiter{
 		rdb:        rdb,
 		capacity:   cap,
@@ -124,8 +124,8 @@ func (rl *RedisLimiter) Allow(ctx context.Context, ip string) bool {
 	end
 	`
 	keys := []string{
-		"rate_limit:" + ip + ":tokens",
-		"rate_limit:" + ip + ":last_refill",
+		"rate_limit:{" + ip + "}:tokens",
+		"rate_limit:{" + ip + "}:last_refill",
 	}
 	now := float64(time.Now().UnixNano()) / 1e9
 	result, err := rl.rdb.Eval(ctx, script, keys, rl.capacity, rl.refillRate, now).Int()
