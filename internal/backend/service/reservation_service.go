@@ -74,6 +74,14 @@ func (s *ReservationService) ReserveSeat(ctx context.Context, req *reservationv1
 		return nil, fmt.Errorf("state kontrol hatası: %w", err)
 	}
 	if bookedState != "" {
+		// Eğer idempotency key ile geldiyse ve koltuğu daha önce DA aynı kullanıcı rezerve etmişse → idempotent 200
+		if idempotencyKey != "" && bookedState == userID {
+			return &reservationv1.ReserveSeatResponse{
+				Success: true,
+				Message: "Mükerrer İstek (Idempotency): İşleminiz sistemde zaten başarılı şekilde kaydedilmiş.",
+			}, nil
+		}
+		// Aksi halde farklı bir istek bu koltuğu almış demektir → 409
 		return &reservationv1.ReserveSeatResponse{
 			Success: false,
 			Message: "Locked (Koltuk Başka Bir İşlem Tarafından Rezerve Edildi)",

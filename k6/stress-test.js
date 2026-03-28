@@ -19,7 +19,7 @@ export default function () {
 
     const payload = JSON.stringify({
         user_id: generateAlphanumID(),
-        trip_id: generateAlphanumID(),
+        trip_id: uuidv4(),
         seat_id: generateAlphanumID(),
         idempotency_key: uuidv4(),
     });
@@ -28,7 +28,7 @@ export default function () {
     };
     const res = http.post(url, payload, params);
     check(res, { 'status 200 or 429': (r) => r.status === 200 || r.status === 429 });
-0
+
 
     sleep(1);
 }

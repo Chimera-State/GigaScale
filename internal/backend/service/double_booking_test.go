@@ -19,7 +19,7 @@ func TestDoubleBookingGuard_UniqueIndex(t *testing.T) {
 		postgres.WithDatabase("testdb"),
 		postgres.WithUsername("testuser"),
 		postgres.WithPassword("testpass"),
-		postgres.WithInitScripts(filepath.Join("..", "..", "..", "migrations", "001_init.sql")),
+		postgres.WithInitScripts(filepath.Join("..", "..", "..", "migrations", "001_init.up.sql")),
 		testcontainers.WithWaitStrategy(
 			wait.ForLog("database system is ready to accept connections").WithOccurrence(2).WithStartupTimeout(10*time.Second),
 		),
@@ -68,7 +68,7 @@ func TestDoubleBookingGuard_UniqueIndex(t *testing.T) {
 	}
 	t.Logf("2. İstek (Müşteri B) beklendiği gibi veritabanı tarafından reddedildi. Alınan hata: %v", err)
 	errStr := strings.ToLower(err.Error())
-	if !strings.Contains(errStr, "unique constraint") && !strings.Contains(errStr, "idx_reservations_trip_seat_confirmed") {
+	if !strings.Contains(errStr, "already_booked") && !strings.Contains(errStr, "benzersizlik ihlali") {
 		t.Errorf("Hata alındı fakat UNIQUE INDEX kısıtlamasından kaynaklanmıyor. Gelen hata: %v", err)
 	} else {
 		t.Log("DB Guard: Harika! Veritabanı UNIQUE INDEX kısıtlaması, süresi dolan kilitte bile çift rezervasyonu kesin olarak durdurdu.")

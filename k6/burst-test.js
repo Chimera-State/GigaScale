@@ -50,10 +50,8 @@ export default function () {
     const res = http.post(url, payload, params);
 
     check(res, {
-        'status 200': (r) => r.status === 200, // Success
-        'status 409': (r) => r.status === 409, // Conflict (Seat Taken)
-        'status 429': (r) => r.status === 429, // Too Many Requests (Rate Limit)
-        'status 500': (r) => r.status === 500, // Internal Error
+        'sistem 500 donmedi (200/409/429 kabul edilebilir)': (r) =>
+            r.status === 200 || r.status === 409 || r.status === 429,
     });
 
     sleep(0.1);

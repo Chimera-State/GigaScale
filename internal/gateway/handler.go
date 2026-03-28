@@ -7,7 +7,6 @@ import (
 	"time"
 
 	pb "github.com/Chimera-State/GigaScale/api/proto/reservation/v1"
-	"github.com/redis/go-redis/v9"
 )
 
 func (s *Server) HandleReserve(w http.ResponseWriter, r *http.Request) {
@@ -31,23 +30,7 @@ func (s *Server) HandleReserve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	lockKey := "lock:seat:" + req.SeatID
-
-	err = s.rdb.SetArgs(r.Context(), lockKey, req.UserID, redis.SetArgs{
-		Mode: "NX",
-		TTL:  5 * time.Second,
-	}).Err()
-
-	if err == redis.Nil {
-		w.WriteHeader(http.StatusConflict) // 409
-		json.NewEncoder(w).Encode(map[string]string{"error": "Seat is being processed or already taken"})
-		return
-	} else if err != nil {
-		http.Error(w, "Redis Lock Error", http.StatusInternalServerError)
-		return
-	}
-
-	ctx, cancel := context.WithTimeout(r.Context(), 200*time.Millisecond)
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 	defer cancel()
 
 	grpcReq := &pb.ReserveSeatRequest{
@@ -63,16 +46,17 @@ func (s *Server) HandleReserve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	httpResp := ReserveHTTPResponse{
+		Success: resp.Success,
+		Message: resp.Message,
+	}
+	w.Header().Set("Content-Type", "application/json")
+	
 	if !resp.Success {
 		w.WriteHeader(http.StatusConflict)
 	} else {
 		w.WriteHeader(http.StatusOK)
 	}
 
-	httpResp := ReserveHTTPResponse{
-		Success: resp.Success,
-		Message: resp.Message,
-	}
-	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(httpResp)
 }
