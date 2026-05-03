@@ -1,9 +1,11 @@
 package repository
+
 import (
 	"context"
-	"time"
 	"github.com/google/uuid"
+	"time"
 )
+
 type Reservation struct {
 	ID             uuid.UUID
 	UserID         uuid.UUID

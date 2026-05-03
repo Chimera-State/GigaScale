@@ -1,9 +1,11 @@
 package db
+
 import (
 	"database/sql"
 	"fmt"
 	_ "github.com/lib/pq"
 )
+
 func NewDatabase(databaseURL string) (*sql.DB, error) {
 	db, err := sql.Open("postgres", databaseURL)
 	if err != nil {

@@ -1,17 +1,20 @@
 package payment
+
 import (
 	"context"
-	"math/rand"
-	"os"
-	"time"
 	pb "github.com/Chimera-State/GigaScale/api/proto/payment/v1"
 	"github.com/google/uuid"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"math/rand"
+	"os"
+	"time"
 )
+
 type PaymentServiceServer struct {
 	pb.UnimplementedPaymentServiceServer
 }
+
 func NewPaymentService() *PaymentServiceServer {
 	return &PaymentServiceServer{}
 }

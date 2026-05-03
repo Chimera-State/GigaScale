@@ -1,13 +1,15 @@
 package main
+
 import (
-	"log"
-	"net"
-	"os"
 	pb "github.com/Chimera-State/GigaScale/api/proto/payment/v1"
 	payment "github.com/Chimera-State/GigaScale/internal/payment/service"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
+	"log"
+	"net"
+	"os"
 )
+
 func main() {
 	port := os.Getenv("PORT")
 	if port == "" {

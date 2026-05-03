@@ -1,9 +1,7 @@
 package service
+
 import (
 	"context"
-	"path/filepath"
-	"testing"
-	"time"
 	reservationv1 "github.com/Chimera-State/GigaScale/api/proto/reservation/v1"
 	"github.com/Chimera-State/GigaScale/internal/backend/pkg/db"
 	"github.com/Chimera-State/GigaScale/internal/backend/pkg/redislock"
@@ -14,7 +12,11 @@ import (
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	testredis "github.com/testcontainers/testcontainers-go/modules/redis"
 	"github.com/testcontainers/testcontainers-go/wait"
+	"path/filepath"
+	"testing"
+	"time"
 )
+
 func TestIdempotency(t *testing.T) {
 	ctx := context.Background()
 	redisContainer, err := testredis.Run(ctx, "redis:alpine")

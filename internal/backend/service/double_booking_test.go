@@ -1,17 +1,19 @@
 package service
+
 import (
 	"context"
-	"path/filepath"
-	"strings"
-	"testing"
-	"time"
 	"github.com/Chimera-State/GigaScale/internal/backend/pkg/db"
 	"github.com/Chimera-State/GigaScale/internal/backend/repository"
 	"github.com/google/uuid"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
 )
+
 func TestDoubleBookingGuard_UniqueIndex(t *testing.T) {
 	ctx := context.Background()
 	pgContainer, err := postgres.Run(ctx,

@@ -1,11 +1,13 @@
 package redislock
+
 import (
 	"context"
-	"testing"
-	"time"
 	"github.com/redis/go-redis/v9"
 	testredis "github.com/testcontainers/testcontainers-go/modules/redis"
+	"testing"
+	"time"
 )
+
 func TestLockIntegration(t *testing.T) {
 	ctx := context.Background()
 	redisContainer, err := testredis.Run(ctx, "redis:alpine")
