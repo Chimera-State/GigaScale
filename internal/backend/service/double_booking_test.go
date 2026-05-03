@@ -2,16 +2,17 @@ package service
 
 import (
 	"context"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
 	"github.com/Chimera-State/GigaScale/internal/backend/pkg/db"
 	"github.com/Chimera-State/GigaScale/internal/backend/repository"
 	"github.com/google/uuid"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
-	"path/filepath"
-	"strings"
-	"testing"
-	"time"
 )
 
 func TestDoubleBookingGuard_UniqueIndex(t *testing.T) {
@@ -70,9 +71,9 @@ func TestDoubleBookingGuard_UniqueIndex(t *testing.T) {
 	}
 	t.Logf("2. İstek (Müşteri B) beklendiği gibi veritabanı tarafından reddedildi. Alınan hata: %v", err)
 	errStr := strings.ToLower(err.Error())
-	if !strings.Contains(errStr, "unique constraint") && !strings.Contains(errStr, "idx_reservations_trip_seat_confirmed") {
-		t.Errorf("Hata alındı fakat UNIQUE INDEX kısıtlamasından kaynaklanmıyor. Gelen hata: %v", err)
+	if !strings.Contains(errStr, "already_booked") && !strings.Contains(errStr, "benzersizlik") {
+		t.Errorf("Hata alındı fakat beklenen double-booking/domain hatası değil. Gelen hata: %v", err)
 	} else {
-		t.Log("DB Guard: Harika! Veritabanı UNIQUE INDEX kısıtlaması, süresi dolan kilitte bile çift rezervasyonu kesin olarak durdurdu.")
+		t.Log("DB Guard: Harika! Veritabanı UNIQUE INDEX kısıtlaması domain hatasına çevrilerek çift rezervasyonu kesin olarak durdurdu.")
 	}
 }
