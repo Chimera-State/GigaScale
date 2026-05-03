@@ -47,7 +47,7 @@ func TestConcurrentReservationOperationsRealLock(t *testing.T) {
 		postgres.WithDatabase("testdb"),
 		postgres.WithUsername("testuser"),
 		postgres.WithPassword("testpass"),
-		postgres.WithInitScripts(filepath.Join("..", "..", "..", "migrations", "001_init.sql")),
+		postgres.WithInitScripts(filepath.Join("..", "..", "..", "migrations", "001_init.up.sql")),
 		testcontainers.WithWaitStrategy(
 			wait.ForLog("database system is ready to accept connections").WithOccurrence(2).WithStartupTimeout(10*time.Second),
 		),
