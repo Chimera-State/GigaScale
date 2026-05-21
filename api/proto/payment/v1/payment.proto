@@ -1,0 +1,27 @@
+syntax = "proto3";
+package payment.v1;
+option go_package = "github.com/Chimera-State/GigaScale/api/proto/payment/v1;payment";
+service PaymentService {
+  rpc Charge(ChargeRequest) returns (ChargeResponse) {}
+  rpc Refund(RefundRequest) returns (RefundResponse) {}
+}
+message ChargeRequest {
+  string user_id = 1;
+  double amount = 2;
+  string currency = 3;
+  string idempotency_key = 4;
+  string reservation_id = 5;
+}
+message ChargeResponse {
+  bool success = 1;
+  string payment_id = 2;
+  string message = 3;
+}
+message RefundRequest {
+  string payment_id = 1;
+  string reason = 2;
+}
+message RefundResponse {
+  bool success = 1;
+  string message = 2;
+}

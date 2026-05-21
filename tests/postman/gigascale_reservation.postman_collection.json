@@ -1,0 +1,67 @@
+{
+  "info": {
+    "_postman_id": "b2aa5a8a-9b7c-4766-bb64-bebd3c502438",
+    "name": "GigaScale Reservation API",
+    "description": "GigaScale Reservation Engine için ortak test seti.  \nHappy Path ve Error Path senaryoları içerir.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "52725205",
+    "_collection_link": "https://go.postman.co/collection/52725205-b2aa5a8a-9b7c-4766-bb64-bebd3c502438?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "Happy Path - Başarılı Rezervasyon",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"user_id\": \"user-001\",\r\n  \"trip_id\": \"trip-42\",\r\n  \"seat_id\": \"seat7A\",\r\n  \"idempotency_key\": \"req-abc123\"\r\n}\r\n",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+           "raw": "http://localhost:8080/api/v1/reserve",
+           "protocol": "http",
+            "host": [ "localhost" ],
+            "port": "8080",
+            "path": [ "api", "v1", "reserve" ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Error Path — Eksik Alan ile Başarısız Rezervasyon",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n    \"user_id\": \"user-001\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/v1/reserve",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api",
+            "v1",
+            "reserve"
+          ]
+        },
+        "description": "trip_id, seat_id ve idempotency_key eksik gönderildi.  \nBeklenen cevap : HTTP 400 veya 500.  \nBackend validasyon eklendiğinde bu seneryo güncellenmelidir."
+      },
+      "response": []
+    }
+  ]
+}

@@ -1,0 +1,161 @@
+services:
+
+  # ── Backend (gRPC) ──────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: cmd/backend/Dockerfile
+    restart: unless-stopped
+    networks:
+      - internal
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migration:
+        condition: service_completed_successfully # Tablolar oluşmadan backend açılmaz
+
+  # ── Database Migration ──────────────────────────────────────────────────────
+  migration:
+    image: migrate/migrate
+    container_name: gigascale-migration
+    networks:
+      - internal
+    env_file:
+      - .env
+    volumes:
+      - ./migrations:/migrations:ro
+    command:
+      - -path
+      - migrations 
+      - -database
+      - postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+      - up
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+
+  # ── Gateway (HTTP → gRPC) ───────────────────────────────────────────────────
+  gateway:
+    build:
+      context: .
+      dockerfile: cmd/gateway/Dockerfile
+    restart: unless-stopped
+    #ports:
+      #- "8080:8080"
+    env_file:
+      - .env
+    networks:
+      - internal
+    depends_on:
+      - backend
+
+  # ── PostgreSQL ────────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:15-alpine
+    container_name: gigascale-postgres
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s # Garanti olsun diye 15 saniyeye çıkardık
+
+
+  # ── Redis ─────────────────────────────────────────────────────────────────────
+  # ── Redis Cluster Nodes (3 Master + 3 Replica) ──────────────────────────────
+  redis-node-1:
+    image: redis:7-alpine
+    command: redis-server --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes
+    networks:
+      - internal
+
+  redis-node-2:
+    image: redis:7-alpine
+    command: redis-server --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes
+    networks:
+      - internal
+
+  redis-node-3:
+    image: redis:7-alpine
+    command: redis-server --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes
+    networks:
+      - internal
+
+  redis-node-4:
+    image: redis:7-alpine
+    command: redis-server --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes
+    networks:
+      - internal
+
+  redis-node-5:
+    image: redis:7-alpine
+    command: redis-server --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes
+    networks:
+      - internal
+
+  redis-node-6:
+    image: redis:7-alpine
+    command: redis-server --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes
+    networks:
+      - internal
+
+  redis-cluster-creator:
+    image: redis:7-alpine
+    networks:
+      - internal
+    depends_on:
+      - redis-node-1
+      - redis-node-2
+      - redis-node-3
+      - redis-node-4
+      - redis-node-5
+      - redis-node-6
+    entrypoint: >
+      sh -c "sleep 5 && echo 'yes' | redis-cli --cluster create 
+      redis-node-1:6379 redis-node-2:6379 redis-node-3:6379 
+      redis-node-4:6379 redis-node-5:6379 redis-node-6:6379 
+      --cluster-replicas 1"
+  # ── RedisInsight (Redis GUI) ──────────────────────────────────────────────────
+  redisinsight:
+    image: redis/redisinsight:latest
+    container_name: gigascale-redisinsight
+    restart: unless-stopped
+    ports:
+      - "5540:5540"
+    networks:
+      - internal
+    depends_on:
+      - redis-node-1
+
+  # ── Load Testing (k6) ─────────────────────────────────────────────────────────
+  k6:
+    image: grafana/k6:latest
+    container_name: gigascale-k6
+    depends_on:
+      - gateway
+    networks:
+      - internal
+    volumes:
+      - ./k6:/scripts
+    working_dir: /scripts
+    entrypoint: [ "k6" ]
+
+# ── Networks & Volumes ────────────────────────────────────────────────────────
+networks:
+  internal:
+    name: gigascale-internal
+    driver: bridge
+
+volumes:
+  redis-data:
+  postgres-data:

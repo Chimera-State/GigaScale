@@ -1,0 +1,50 @@
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: gigascale-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - gigascale-internal
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: gigascale-node-exporter
+    ports:
+      - "9100:9100"
+    networks:
+      - gigascale-internal
+
+  influxdb:
+    image: influxdb:1.8
+    container_name: gigascale-influxdb
+    ports:
+      - "8086:8086"
+    environment:
+      - INFLUXDB_DB=k6
+    networks:
+      - gigascale-internal
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: gigascale-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_BASIC_ENABLED=false
+    volumes:
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+    depends_on:
+      - prometheus
+      - influxdb
+    networks:
+      - gigascale-internal
+
+networks:
+  gigascale-internal:
+    external: true

@@ -1,0 +1,116 @@
+{
+  "id": null,
+  "uid": "gigascale-main",
+  "title": "GigaScale - Gateway & Backend",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "panels": [
+    {
+      "type": "row",
+      "title": "Gateway",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Prometheus HTTP RPS",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(prometheus_http_requests_total[5m]))",
+          "legendFormat": "RPS"
+        }
+      ],
+      "description": "Şimdilik örnek olarak Prometheus'un kendi HTTP istek RPS değeri gösteriliyor."
+    },
+    {
+      "type": "timeseries",
+      "title": "Prometheus HTTP Latency p50/p95/p99",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 1 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.50, sum(rate(prometheus_http_request_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p50"
+        },
+        {
+          "refId": "B",
+          "expr": "histogram_quantile(0.95, sum(rate(prometheus_http_request_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p95"
+        },
+        {
+          "refId": "C",
+          "expr": "histogram_quantile(0.99, sum(rate(prometheus_http_request_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p99"
+        }
+      ],
+      "description": "Prometheus HTTP istekleri için latency quantile değerleri (örnek)."
+    },
+    {
+      "type": "timeseries",
+      "title": "Prometheus HTTP Error Rate",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 9 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(prometheus_http_requests_total{code=~\"5..\"}[5m])) / sum(rate(prometheus_http_requests_total[5m]))",
+          "legendFormat": "5xx oranı"
+        }
+      ],
+      "description": "HTTP 5xx oranı (şimdilik Prometheus için örnek). Gateway/backend metrikleri eklendiğinde sorgu güncellenebilir."
+    },
+    {
+      "type": "timeseries",
+      "title": "HTTP 429 Rate Limit Oranı (örnek)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 9 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(prometheus_http_requests_total{code=\"429\"}[5m])) / sum(rate(prometheus_http_requests_total[5m]))",
+          "legendFormat": "429 oranı"
+        }
+      ],
+      "description": "Gerçek rate limit metrikleri eklendiğinde bu sorgu gateway/backend metriklerine göre düzenlenebilir."
+    },
+    {
+      "type": "row",
+      "title": "Go Runtime",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 17 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Go Goroutines (Prometheus)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 18 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "go_goroutines",
+          "legendFormat": "{{job}}"
+        }
+      ],
+      "description": "Go uygulamaları için goroutine sayısı (şu an için Prometheus ve varsa Go tabanlı servisler)."
+    },
+    {
+      "type": "timeseries",
+      "title": "Go Heap Usage (Prometheus)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 18 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "go_memstats_heap_alloc_bytes",
+          "legendFormat": "{{job}}"
+        }
+      ],
+      "description": "Go heap kullanım metriği (şu an için Prometheus ve varsa diğer Go servisleri)."
+    }
+  ],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  }
+}
