@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	pb "github.com/Chimera-State/GigaScale/api/proto/reservation/v1"
+	"github.com/Chimera-State/GigaScale/internal/gateway/orchestrator"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -47,32 +47,32 @@ func (s *Server) HandleReserve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 200*time.Millisecond)
+	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer cancel()
 
-	grpcReq := &pb.ReserveSeatRequest{
-		UserId:         req.UserID,
-		TripId:         req.TripID,
-		SeatId:         req.SeatID,
+	result, err := s.orchestrator.ReserveWithPayment(ctx, orchestrator.ReserveRequest{
+		UserID:         req.UserID,
+		TripID:         req.TripID,
+		SeatID:         req.SeatID,
 		IdempotencyKey: req.IdempotencyKey,
-	}
+		Amount:         req.Amount,
+	})
 
-	resp, err := s.reserveClient.ReserveSeat(ctx, grpcReq)
 	if err != nil {
 		s.handleGRPCError(w, err)
 		return
 	}
 
-	if !resp.Success {
+	if !result.Success {
 		w.WriteHeader(http.StatusConflict)
 	} else {
 		w.WriteHeader(http.StatusOK)
 	}
 
-	httpResp := ReserveHTTPResponse{
-		Success: resp.Success,
-		Message: resp.Message,
-	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(httpResp)
+	json.NewEncoder(w).Encode(ReserveHTTPResponse{
+		Success:   result.Success,
+		Message:   result.Message,
+		PaymentID: result.PaymentID,
+	})
 }
