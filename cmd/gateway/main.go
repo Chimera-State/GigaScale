@@ -1,6 +1,5 @@
 package main
 
-//main.go
 import (
 	"context"
 	"encoding/json"
@@ -12,8 +11,11 @@ import (
 	"syscall"
 	"time"
 
+	pbpay "github.com/Chimera-State/GigaScale/api/proto/payment/v1"
 	pb "github.com/Chimera-State/GigaScale/api/proto/reservation/v1"
 	"github.com/Chimera-State/GigaScale/internal/gateway"
+	"github.com/Chimera-State/GigaScale/internal/gateway/mq"
+	"github.com/Chimera-State/GigaScale/internal/gateway/orchestrator"
 	"github.com/go-playground/validator/v10"
 	"github.com/redis/go-redis/v9"
 	"google.golang.org/grpc"
@@ -57,15 +59,17 @@ func healthHandler(rdb redis.UniversalClient, conn *grpc.ClientConn) http.Handle
 }
 
 func main() {
-	//addr
+	// addr
 	backendAddr := getEnv("BACKEND_ADDR", "localhost:50051")
+	paymentAddr := getEnv("PAYMENT_ADDR", "localhost:50052")
+	kafkaAddr := getEnv("KAFKA_ADDR", "kafka:9092")
 	serverPort := getEnv("SERVER_PORT", ":8080")
 
+	// redis cluster
 	clusterAddrs := []string{
 		"redis-node-1:6379", "redis-node-2:6379", "redis-node-3:6379",
 		"redis-node-4:6379", "redis-node-5:6379", "redis-node-6:6379",
 	}
-
 	rdb := redis.NewClusterClient(&redis.ClusterOptions{
 		Addrs:        clusterAddrs,
 		MaxRedirects: 8, // tolerance
@@ -80,14 +84,23 @@ func main() {
 	conn, err := grpc.NewClient(
 		backendAddr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`))
+		grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`),
+	)
 	if err != nil {
-		log.Fatalf("Could not connect to the backend %v", err)
+		log.Fatalf("Could not connect to the backend: %v", err)
 	}
 	defer conn.Close()
+	reserveClient := pb.NewReservationServiceClient(conn)
 
-	client := pb.NewReservationServiceClient(conn)
+	// payment gRPC bağlantısı
+	paymentConn, err := grpc.NewClient(paymentAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatalf("Could not connect to payment service: %v", err)
+	}
+	defer paymentConn.Close()
+	paymentClient := pbpay.NewPaymentServiceClient(paymentConn)
 
+	// rate limiter
 	useRedisLimiter := strings.TrimSpace(getEnv("USE_REDIS_LIMITER", "false")) == "true"
 	var limiter gateway.RateLimiter
 	if useRedisLimiter {
@@ -96,14 +109,21 @@ func main() {
 		limiter = gateway.NewIpLimiter(10, 2)
 	}
 
-	//dp injection
-	v := validator.New()
-	srv := gateway.NewServer(client, limiter, v, rdb)
+	// kafka publisher
+	publisher := mq.New(kafkaAddr)
+	defer publisher.Close()
 
+	// orchestrator
+	orch := orchestrator.New(reserveClient, paymentClient, publisher)
+
+	// DI
+	v := validator.New()
+	srv := gateway.NewServer(reserveClient, limiter, v, rdb, orch)
+
+	// router
 	mux := http.NewServeMux()
 	secureHandler := srv.RateLimiter(http.HandlerFunc(srv.HandleReserve))
 	mux.Handle("POST /api/v1/reserve", secureHandler)
-
 	mux.HandleFunc("GET /health", healthHandler(rdb, conn))
 
 	httpServer := &http.Server{
@@ -133,5 +153,4 @@ func main() {
 		log.Fatalf("Server forced shutdown: %v", err)
 	}
 	log.Println("GigaScale exited clean.")
-
 }

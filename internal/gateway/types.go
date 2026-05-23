@@ -4,14 +4,16 @@ package gateway
 
 // istekler için struct
 type ReserveHTTPRequest struct {
-	UserID         string `json:"user_id" validate:"required"`
-	TripID         string `json:"trip_id" validate:"required"`
-	SeatID         string `json:"seat_id"  validate:"required,alphanum"`
-	IdempotencyKey string `json:"idempotency_key" validate:"required"`
+	UserID         string  `json:"user_id" validate:"required"`
+	TripID         string  `json:"trip_id" validate:"required"`
+	SeatID         string  `json:"seat_id"  validate:"required,alphanum"`
+	IdempotencyKey string  `json:"idempotency_key" validate:"required"`
+	Amount         float64 `json:"amount" validate:"required,gt=0"`
 }
 
 // yanıtlar için struct
 type ReserveHTTPResponse struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
+	Success   bool   `json:"success"`
+	Message   string `json:"message"`
+	PaymentID string `json:"payment_id,omitempty"`
 }
