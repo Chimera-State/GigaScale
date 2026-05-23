@@ -45,17 +45,17 @@ func (p *Publisher) Publish(ctx context.Context, event ReservationCreatedEvent) 
 		Value: data,
 	})
 	if err != nil {
-		log.Printf("[KAFKA] Publish hatası: %v", err)
+		log.Printf("[KAFKA] publish error: %v", err)
 		return err
 	}
 
-	log.Printf("[KAFKA] Event yayınlandı: user=%s seat=%s payment=%s",
+	log.Printf("[KAFKA] Event published: user=%s seat=%s payment=%s",
 		event.UserID, event.SeatID, event.PaymentID)
 	return nil
 }
 
 func (p *Publisher) Close() {
 	if err := p.writer.Close(); err != nil {
-		log.Printf("[KAFKA] Close hatası: %v", err)
+		log.Printf("[KAFKA] close error: %v", err)
 	}
 }
