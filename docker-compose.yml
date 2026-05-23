@@ -52,6 +52,17 @@ services:
     depends_on:
       - backend
 
+  # ── Payment (gRPC) ──────────────────────────────────────────────────────────
+  payment:
+    build:
+      context: .
+      dockerfile: cmd/payment/Dockerfile
+    restart: unless-stopped
+    networks:
+      - internal
+    env_file:
+      - .env
+
   # ── PostgreSQL ────────────────────────────────────────────────────────────────
   postgres:
     image: postgres:15-alpine
@@ -149,6 +160,44 @@ services:
       - ./k6:/scripts
     working_dir: /scripts
     entrypoint: [ "k6" ]
+
+  # ── Zookeeper & Kafka ────────────────────────────────────────────────────────
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: gigascale-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - internal
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: gigascale-kafka
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    networks:
+      - internal
+
+  # ── Notifier (Kafka Consumer) ────────────────────────────────────────────────
+  notifier:
+    build:
+      context: .
+      dockerfile: cmd/notifier/Dockerfile
+    container_name: gigascale-notifier
+    restart: unless-stopped
+    networks:
+      - internal
+    env_file:
+      - .env
+    depends_on:
+      - kafka
 
 # ── Networks & Volumes ────────────────────────────────────────────────────────
 networks:
