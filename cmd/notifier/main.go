@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/Chimera-State/go-otel-kit/setup"
 	"github.com/segmentio/kafka-go"
 )
 
@@ -29,6 +30,16 @@ type ReservationCreatedEvent struct {
 
 func main() {
 	kafkaAddr := getEnv("KAFKA_ADDR", "kafka:9092")
+
+	ctx := context.Background()
+	if err := setup.Init(ctx,
+		setup.WithServiceName("gigascale-notifier"),
+		setup.WithServiceVersion("1.0.0"),
+		setup.WithExporterEndpoint("otel-collector:4317"),
+	); err != nil {
+		log.Fatalf("OTel initialization failed: %v", err)
+	}
+	defer setup.Shutdown(ctx)
 
 	reader := kafka.NewReader(kafka.ReaderConfig{
 		Brokers:  []string{kafkaAddr},

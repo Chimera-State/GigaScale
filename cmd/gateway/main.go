@@ -16,6 +16,9 @@ import (
 	"github.com/Chimera-State/GigaScale/internal/gateway"
 	"github.com/Chimera-State/GigaScale/internal/gateway/mq"
 	"github.com/Chimera-State/GigaScale/internal/gateway/orchestrator"
+	"github.com/Chimera-State/go-otel-kit/interceptor"
+	"github.com/Chimera-State/go-otel-kit/middleware"
+	"github.com/Chimera-State/go-otel-kit/setup"
 	"github.com/go-playground/validator/v10"
 	"github.com/redis/go-redis/v9"
 	"google.golang.org/grpc"
@@ -65,6 +68,16 @@ func main() {
 	kafkaAddr := getEnv("KAFKA_ADDR", "kafka:9092")
 	serverPort := getEnv("SERVER_PORT", ":8080")
 
+	ctx := context.Background()
+	if err := setup.Init(ctx,
+		setup.WithServiceName("gigascale-gateway"),
+		setup.WithServiceVersion("1.0.0"),
+		setup.WithExporterEndpoint("otel-collector:4317"),
+	); err != nil {
+		log.Fatalf("Otel initialization failed: %v", err)
+	}
+	defer setup.Shutdown(ctx)
+
 	// redis cluster
 	clusterAddrs := []string{
 		"redis-node-1:6379", "redis-node-2:6379", "redis-node-3:6379",
@@ -75,17 +88,18 @@ func main() {
 		MaxRedirects: 8, // tolerance
 		ReadOnly:     false,
 	})
-	ctx := context.Background()
 	if err := rdb.Ping(ctx).Err(); err != nil {
 		log.Fatalf("Redis bağlantı hatası: %v", err)
 	}
 	defer rdb.Close()
+
 	//gateway conn
-	conn, err := grpc.NewClient(
-		backendAddr,
+	backendOpts := append(interceptor.ClientOptions(),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`),
-	)
+		grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`))
+
+	conn, err := grpc.NewClient(backendAddr, backendOpts...)
+
 	if err != nil {
 		log.Fatalf("Could not connect to the backend: %v", err)
 	}
@@ -93,7 +107,10 @@ func main() {
 	reserveClient := pb.NewReservationServiceClient(conn)
 
 	// payment gRPC bağlantısı
-	paymentConn, err := grpc.NewClient(paymentAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	paymentOpts := append(interceptor.ClientOptions(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	paymentConn, err := grpc.NewClient(paymentAddr, paymentOpts...)
 	if err != nil {
 		log.Fatalf("Could not connect to payment service: %v", err)
 	}
@@ -122,7 +139,7 @@ func main() {
 
 	// router
 	mux := http.NewServeMux()
-	secureHandler := srv.RateLimiter(http.HandlerFunc(srv.HandleReserve))
+	secureHandler := middleware.TraceMiddleware(srv.RateLimiter(http.HandlerFunc(srv.HandleReserve)))
 	mux.Handle("POST /api/v1/reserve", secureHandler)
 	mux.HandleFunc("GET /health", healthHandler(rdb, conn))
 
