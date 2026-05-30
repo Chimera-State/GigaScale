@@ -2,10 +2,8 @@ module github.com/Chimera-State/GigaScale
 
 go 1.25.0
 
-replace github.com/Chimera-State/go-otel-kit => ../go-otel-kit
-
 require (
-	github.com/Chimera-State/go-otel-kit v0.0.0
+	github.com/Chimera-State/go-otel-kit v0.0.0-20260530124628-8b11bcf3e5e2
 	github.com/go-playground/validator/v10 v10.30.1
 	github.com/google/uuid v1.6.0
 	github.com/lib/pq v1.11.2
