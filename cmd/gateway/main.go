@@ -127,7 +127,10 @@ func main() {
 	}
 
 	// kafka publisher
-	publisher := mq.New(kafkaAddr)
+	publisher, err := mq.New(kafkaAddr)
+	if err != nil {
+		log.Fatalf("Kafka publisher initialization failed: %v", err)
+	}
 	defer publisher.Close()
 
 	// orchestrator
