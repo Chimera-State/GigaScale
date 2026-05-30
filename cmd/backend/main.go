@@ -43,9 +43,10 @@ func main() {
 		return handler(ctx, req)
 	}
 	s := grpc.NewServer(
-		append(interceptor.ServerOptions(),
-			grpc.UnaryInterceptor(loggingInterceptor),
-		)...,
+		grpc.ChainUnaryInterceptor(
+			interceptor.UnaryServerInterceptor(),
+			loggingInterceptor,
+		),
 	)
 	clusterAddrs := []string{
 		"redis-node-1:6379", "redis-node-2:6379", "redis-node-3:6379",

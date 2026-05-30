@@ -1,6 +1,9 @@
-import http from 'k6/http';
+import http, { expectedStatuses, setResponseCallback } from 'k6/http';
 import { check, sleep } from 'k6';
 import { uuidv4 } from 'https://jslib.k6.io/k6-utils/1.4.0/index.js';
+
+// 200, 409, 429 → beklenen yanıtlar (http_req_failed'e dahil edilmez)
+setResponseCallback(expectedStatuses(200, 409, 429));
 
 export const options = {
     insecureSkipTLSVerify: true,
@@ -49,11 +52,16 @@ export default function () {
 
     const res = http.post(url, payload, params);
 
+    const passed = check(res, {
+        'status is 200|409|429': (r) => r.status === 200 || r.status === 409 || r.status === 429,
+        'no server error (500)': (r) => r.status !== 500,
+    });
+
+    // Detaylı breakdown (opsiyonel)
     check(res, {
-        'status 200': (r) => r.status === 200, // Success
-        'status 409': (r) => r.status === 409, // Conflict (Seat Taken)
-        'status 429': (r) => r.status === 429, // Too Many Requests (Rate Limit)
-        'status 500': (r) => r.status === 500, // Internal Error
+        'reserved (200)':    (r) => r.status === 200,
+        'conflict (409)':    (r) => r.status === 409,
+        'rate limited (429)': (r) => r.status === 429,
     });
 
     sleep(0.1);

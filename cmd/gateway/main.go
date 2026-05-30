@@ -96,7 +96,7 @@ func main() {
 	//gateway conn
 	backendOpts := append(interceptor.ClientOptions(),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`))
+	)
 
 	conn, err := grpc.NewClient(backendAddr, backendOpts...)
 
@@ -150,7 +150,7 @@ func main() {
 		Addr:         serverPort,
 		Handler:      mux,
 		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 10 * time.Second,
+		WriteTimeout: 20 * time.Second,
 		IdleTimeout:  120 * time.Second,
 	}
 

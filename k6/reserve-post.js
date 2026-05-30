@@ -20,6 +20,7 @@ export default function () {
         trip_id: generateAlphanumID(),
         seat_id: generateAlphanumID(),
         idempotency_key: uuidv4(),
+        amount: 100.50,
     });
 
     const params = {

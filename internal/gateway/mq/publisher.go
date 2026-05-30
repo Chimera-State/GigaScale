@@ -27,6 +27,7 @@ type Publisher struct {
 func New(brokerAddr string) (*Publisher, error) {
 	cl, err := kgo.NewClient(
 		kgo.SeedBrokers(brokerAddr),
+		kgo.AllowAutoTopicCreation(),
 	)
 	if err != nil {
 		return nil, err
