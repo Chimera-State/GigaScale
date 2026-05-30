@@ -55,7 +55,6 @@ func sendNotification(
 ) error {
 	const channel = "webhook"
 
-	// Idempotency check — skip if already successfully delivered.
 	if repo != nil {
 		alreadySent, err := repo.AlreadySent(ctx, event.IdempotencyKey, channel)
 		if err != nil {
@@ -77,7 +76,6 @@ func sendNotification(
 		SentAt:         time.Now().UTC(),
 	}
 
-	// Fire the webhook (ctx carries the OTel trace into the HTTP call).
 	if webhookClient != nil {
 		if err := webhookClient.Send(ctx, record); err != nil {
 			record.Status = "failed"
@@ -92,7 +90,6 @@ func sendNotification(
 	log.Printf("[NOTIFIER] Webhook delivered: UserID=%s SeatID=%s PaymentID=%s",
 		event.UserID, event.SeatID, event.PaymentID)
 
-	// Persist the audit record — non-fatal if it fails.
 	if repo != nil {
 		if err := repo.Log(ctx, record); err != nil {
 			log.Printf("[NOTIFIER] Failed to log notification to DB: %v", err)
@@ -103,7 +100,6 @@ func sendNotification(
 }
 
 func main() {
-	// fail-fast: APP_ENV must be explicitly set to a known value.
 	appEnv := os.Getenv("APP_ENV")
 	if !validAppEnvs[appEnv] {
 		log.Fatalf("[NOTIFIER] APP_ENV is not set or invalid (got %q). Must be one of: development, test, production", appEnv)
@@ -125,7 +121,6 @@ func main() {
 	}
 	defer setup.Shutdown(ctx)
 
-	// DB connection — required only in production for idempotency + audit log.
 	var repo *notifier.NotificationRepository
 	if appEnv == "production" {
 		dbURL := os.Getenv("DATABASE_URL")
@@ -140,7 +135,6 @@ func main() {
 		repo = notifier.NewNotificationRepository(db)
 	}
 
-	// Webhook client — required only when WEBHOOK_URL is set.
 	var webhookClient *notifier.WebhookClient
 	if webhookURL != "" {
 		webhookClient = notifier.NewWebhookClient(webhookURL)
@@ -200,7 +194,7 @@ func main() {
 					attribute.String("reservation.payment_id", event.PaymentID),
 				)
 
-				// msgCtx → trace propagates into the webhook HTTP call
+				// msgCtx trace propagates into the webhook HTTP call
 				if err := sendNotification(msgCtx, repo, webhookClient, event); err != nil {
 					span.RecordError(err)
 					span.SetStatus(codes.Error, "notification failed")
