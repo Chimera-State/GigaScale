@@ -126,6 +126,14 @@ The project includes a comprehensive observability stack based on OpenTelemetry,
 
 All OpenTelemetry instrumentation in this project (including context propagation across HTTP, gRPC, and Kafka boundaries) is powered by the **[go-otel-kit](https://github.com/Chimera-State/go-otel-kit)** library. If you are interested in how the telemetry infrastructure is abstracted and implemented, please check out the `go-otel-kit` repository.
 
+### Distributed Tracing (Jaeger)
+
+GigaScale provides full end-to-end distributed tracing across all microservices. Here are some real-world traces collected from the system:
+
+![Jaeger Gateway Trace](assets/jaeger-gatewaytrace.png)
+![Jaeger Gateway Overview](assets/jaeger-gateway.png)
+![Jaeger Backend Overview](assets/jaeger-backend.png)
+
 ### Starting the Monitoring Stack
 
 Ensure the main stack is running, then start the monitoring components:
