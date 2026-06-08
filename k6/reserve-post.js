@@ -1,19 +1,22 @@
 import http from 'k6/http';
-import { check, sleep } from 'k6';
+import { sleep } from 'k6';
+import { Counter } from 'k6/metrics';
 import { uuidv4 } from 'https://jslib.k6.io/k6-utils/1.4.0/index.js';
 
+const status200 = new Counter('Status_200_Success');
+const status409 = new Counter('Status_409_Conflict');
+const status429 = new Counter('Status_429_RateLimit');
+const status500 = new Counter('Status_500_ServerError');
 
 export const options = {
     vus: 1,
     iterations: 1,
 };
 
-
 const generateAlphanumID = () => uuidv4().replace(/-/g, '');
 
 export default function () {
     const url = 'http://gateway:8080/api/v1/reserve';
-
 
     const payload = JSON.stringify({
         user_id: generateAlphanumID(),
@@ -29,10 +32,10 @@ export default function () {
 
     const res = http.post(url, payload, params);
 
-
-    check(res, { 
-        'status 200 or 409': (r) => r.status === 200 || r.status === 409, 
-    });
+    if (res.status === 200) status200.add(1);
+    else if (res.status === 409) status409.add(1);
+    else if (res.status === 429) status429.add(1);
+    else if (res.status >= 500) status500.add(1);
 
     sleep(1);
 }

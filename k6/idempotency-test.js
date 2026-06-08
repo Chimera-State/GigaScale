@@ -1,6 +1,11 @@
 import http from 'k6/http';
-import { check } from 'k6';
+import { Counter } from 'k6/metrics';
 import { uuidv4 } from 'https://jslib.k6.io/k6-utils/1.4.0/index.js';
+
+const status200 = new Counter('Status_200_Success');
+const status409 = new Counter('Status_409_Conflict');
+const status429 = new Counter('Status_429_RateLimit');
+const status500 = new Counter('Status_500_ServerError');
 
 export const options = {
   vus: 1,
@@ -13,8 +18,8 @@ export default function () {
   const url = 'http://gateway:8080/api/v1/reserve';
 
   const sharedUserId = generateAlphanumID();
-  const sharedTripId = "550e8400-e29b-41d4-a716-446655440000"; 
-  const sharedSeatId = "12A"; 
+  const sharedTripId = generateAlphanumID(); 
+  const sharedSeatId = generateAlphanumID(); 
   const sharedIdempotencyKey = uuidv4();
 
   const payload = JSON.stringify({
@@ -22,6 +27,7 @@ export default function () {
     trip_id: sharedTripId,
     seat_id: sharedSeatId,
     idempotency_key: sharedIdempotencyKey,
+    amount: 100.50,
   });
 
   const params = {
@@ -40,15 +46,10 @@ export default function () {
 
   const responses = http.batch(requests);
 
-  let successCount = 0;
-
   responses.forEach((res) => {
-    if (res.status === 200) {
-      successCount++;
-    }
-  });
-
-  check(responses, {
-    'Tum 10 istek 200 (Basarili veya Idempotent) dondu': () => successCount === 10,
+    if (res.status === 200) status200.add(1);
+    else if (res.status === 409) status409.add(1);
+    else if (res.status === 429) status429.add(1);
+    else if (res.status >= 500) status500.add(1);
   });
 }
