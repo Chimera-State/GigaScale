@@ -12,11 +12,8 @@ setResponseCallback(expectedStatuses(200, 409, 429));
 
 export const options = {
     insecureSkipTLSVerify: true,
-    stages: [
-        { duration: '5s', target: 2000 },
-        { duration: '10s', target: 10000 },
-        { duration: '5s', target: 0 },
-    ],
+    vus: 50,
+    iterations: 1500,
 };
 
 const generateAlphanumID = () => uuidv4().replace(/-/g, '');
