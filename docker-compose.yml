@@ -199,8 +199,8 @@ services:
     container_name: gigascale-jaeger
     restart: unless-stopped
     ports:
-      - "16686:16686"
-      - "14250:14250"
+      - "127.0.0.1:16686:16686"
+      - "127.0.0.1:14250:14250"
     networks:
       - internal
 
