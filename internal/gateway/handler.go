@@ -47,7 +47,7 @@ func (s *Server) HandleReserve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 
 	result, err := s.orchestrator.ReserveWithPayment(ctx, orchestrator.ReserveRequest{

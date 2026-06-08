@@ -1,6 +1,14 @@
-import http from 'k6/http';
-import { check, sleep } from 'k6';
+import http, { expectedStatuses, setResponseCallback } from 'k6/http';
+import { sleep } from 'k6';
+import { Counter } from 'k6/metrics';
 import { uuidv4 } from 'https://jslib.k6.io/k6-utils/1.4.0/index.js';
+
+const status200 = new Counter('Status_200_Success');
+const status409 = new Counter('Status_409_Conflict');
+const status429 = new Counter('Status_429_RateLimit');
+const status500 = new Counter('Status_500_ServerError');
+
+setResponseCallback(expectedStatuses(200, 409, 429));
 
 export const options = {
     insecureSkipTLSVerify: true,
@@ -13,7 +21,6 @@ export const options = {
 
 const generateAlphanumID = () => uuidv4().replace(/-/g, '');
 
-// Havuz mantığı 
 function generateRandomIP(vuId) {
     const ipPoolIndex = vuId % 200;
     return `192.168.100.${ipPoolIndex}`;
@@ -22,7 +29,6 @@ function generateRandomIP(vuId) {
 const vusIPs = {};
 
 export default function () {
-    // Her VU için kalıcı IP atanması
     if (!vusIPs[__VU]) {
         vusIPs[__VU] = generateRandomIP(__VU);
     }
@@ -38,6 +44,7 @@ export default function () {
         trip_id: "550e8400-e29b-41d4-a716-446655440000",
         seat_id: selectedSeat,
         idempotency_key: uuidv4(),
+        amount: 100.50,
     });
 
     const params = {
@@ -49,12 +56,10 @@ export default function () {
 
     const res = http.post(url, payload, params);
 
-    check(res, {
-        'status 200': (r) => r.status === 200, // Success
-        'status 409': (r) => r.status === 409, // Conflict (Seat Taken)
-        'status 429': (r) => r.status === 429, // Too Many Requests (Rate Limit)
-        'status 500': (r) => r.status === 500, // Internal Error
-    });
+    if (res.status === 200) status200.add(1);
+    else if (res.status === 409) status409.add(1);
+    else if (res.status === 429) status429.add(1);
+    else if (res.status >= 500) status500.add(1);
 
     sleep(0.1);
 }

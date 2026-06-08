@@ -1,206 +1,155 @@
 # GigaScale Reservation Engine
 
-## Proje Klasör Yapısı
+GigaScale is a highly scalable, distributed reservation and payment orchestration engine. Built with a microservices architecture, it demonstrates advanced patterns such as Saga orchestration, distributed locking, idempotency, and end-to-end distributed tracing.
+
+## Architecture & Services
+
+The system is composed of several specialized microservices and infrastructure components:
+
+| Service | Container | Port | Description |
+|---------|-----------|------|-------------|
+| **Gateway** | `gigascale-gateway` | `8080` | HTTP to gRPC proxy. Handles rate limiting, validation, and Saga orchestration. |
+| **Backend** | `gigascale-backend` | `50051` | gRPC server. Manages core reservation logic, distributed locks, and database transactions. |
+| **Payment** | `gigascale-payment` | `50052` | gRPC server. Simulates payment processing with artificial latency and failure rates. |
+| **Notifier** | `gigascale-notifier` | — | Kafka consumer. Processes successful reservation events and triggers external webhooks. |
+| **PostgreSQL** | `gigascale-postgres` | `5432` | Relational database for persistent storage (reservations and notification audit logs). |
+| **Redis Cluster** | 6 nodes | `6379` | Distributed caching and locking mechanism. |
+| **Kafka** | `gigascale-kafka` | `9092` | Message broker for asynchronous event processing. |
+| **Zookeeper** | `gigascale-zookeeper` | `2181` | Coordination service for Kafka. |
+
+## Project Structure
 
 ```text
 GIGASCALE/
-├── api/
-│   └── proto/
-│       └── reservation.proto         # gRPC servis & mesaj tanımları
-├── cmd/
-│   ├── backend/
-│   │   ├── main.go                   # Backend gRPC sunucu giriş noktası
-│   │   └── Dockerfile                # Multi-stage backend image
-│   └── gateway/
-│       ├── main.go                   # Gateway HTTP sunucu giriş noktası
-│       └── Dockerfile                # Multi-stage gateway image
-├── internal/
-│   ├── gateway/
-│   │   ├── handler.go                # HTTP → gRPC proxy handler
-│   │   └── models.go                 # HTTP request/response modelleri
-│   ├── backend/
-│       ├── service/                  # gRPC servis implementasyonu
-│       └── redisclient/
-│           └── redis.go              # Redis bağlantısı, Connection Pool & Health Check
-│  
-├── k6/
-│   └── basic-get.js                  # k6 yük testi scripti (10 VU, 30s)
-├── tests/
-│   └── postman/
-│       └── gigascale-min.json        # Minimum API test seti
-├── docker-compose.yml                # Uygulama altyapısını ayağa kaldıran dosya
-├── docker-compose-monitoring.yml     # Prometheus + Grafana + node-exporter monitoring stack'i
-├── prometheus.yml                    # Prometheus scrape configuration (gateway, backend, node-exporter)
-├── grafana/
-│   └── provisioning/
-│       ├── datasources/
-│       │   └── prometheus.yml        # Prometheus veri kaynağını otomatik sağlayan config
-│       └── dashboards/
-│           ├── dashboard.yml         # GigaScale dashboard provider tanımı
-│           └── gigascale.json        # GigaScale monitoring dashboard'u
-├── go.mod                            # Go modül tanımı
-├── go.sum                            # Go bağımlılık checksum'ları
-└── README.md                         # Bu dosya
+├── api/proto/                # gRPC service definitions and messages
+├── cmd/                      # Application entrypoints
+│   ├── backend/              # Backend service main & Dockerfile
+│   ├── gateway/              # Gateway service main & Dockerfile
+│   ├── notifier/             # Notifier service main & Dockerfile
+│   └── payment/              # Payment service main & Dockerfile
+├── internal/                 # Private application and library code
+│   ├── backend/              # Backend business logic, repositories, and Redis integration
+│   ├── gateway/              # HTTP handlers, orchestrator (Saga), rate limiters, MQ publisher
+│   ├── notifier/             # Webhook client and notification repository
+│   └── payment/              # Payment processing logic
+├── migrations/               # PostgreSQL schema migrations
+├── k6/                       # Load testing scripts
+├── tests/postman/            # API test collections
+├── docker-compose.yml        # Main infrastructure deployment configuration
+└── docker-compose-monitoring.yml # Monitoring and observability stack
 ```
 
----
+## Getting Started
 
-## Servisler
+### Prerequisites
 
-| Servis       | Container               | Port   | Açıklama |
-| Backend      | `gigascale-backend`     | `50051` (internal) | gRPC sunucu, dışarıya kapalı|
-| Gateway      | `gigascale-gateway`     | `8080` | HTTP → gRPC proxy, dışarıya açık |
-| Redis        | `gigascale-redis`       | `6379` (internal) | Kalıcı veri deposu |
-| RedisInsight | `gigascale-redisinsight`| `5540` | Redis görsel izleme arayüzü |
-| k6           | `gigascale-k6`          | —      | Yük testi aracı (komut bazlı çalışır) |
+- Docker and Docker Compose installed on your system.
 
----
+### Configuration
 
-## Monitoring & Observability (Prometheus + Grafana)
+Before starting the services, configure the environment variables:
 
-Bu projede altyapı ve Go runtime metriklerini izlemek için ayrı bir monitoring stack tanımlıdır:
+```bash
+cp .env.example .env
+```
 
-- **Prometheus** (`prom/prometheus:latest`) – metrikleri toplar
-- **Grafana** (`grafana/grafana:latest`) – dashboard ve görselleştirme
-- **Node Exporter** (`prom/node-exporter:latest`) – host OS metrikleri (CPU, bellek vb.)
-- **InfluxDB** – k6 yük testleri için zaman serisi depolama
+If you wish to test the webhook notification flow, update the `WEBHOOK_URL` in your `.env` file (e.g., using a service like webhook.site). If left empty, the notifier will operate in log-only mode.
 
-### Monitoring stack'i başlatma
+### Running the Services
 
-Önce ana uygulama stack'ini ayağa kaldır:
+Deploy the main application stack:
 
 ```bash
 docker compose up -d --build
 ```
 
-Ardından monitoring stack'i başlat:
+To verify that all containers are running successfully:
 
-```bash
-docker compose -f docker-compose-monitoring.yml up -d
-```
-
-> Not: `docker-compose-monitoring.yml` dosyası, ana stack'in oluşturduğu `gigascale-internal` network'ünü kullanır; bu yüzden önce ana `docker-compose.yml` çalıştırılmalıdır.
-
-### Uygulamalara erişim
-
-- **Gateway API**: `http://localhost:8080`
-- **Prometheus UI**: `http://localhost:9090`
-- **Grafana UI**: `http://localhost:3000`
-  - Anonymous auth açıktır; doğrudan erişebilirsin.
-  - Sol menüden **Dashboards → Browse** altından **GigaScale** klasörünü seçerek `GigaScale - Gateway & Backend` dashboard'unu aç.
-
-### GigaScale dashboard içeriği
-
-`grafana/provisioning/dashboards/gigascale.json` dosyası ile aşağıdaki paneller otomatik olarak sağlanır:
-
-- **Prometheus HTTP RPS**  
-  - Sorgu: `sum(rate(prometheus_http_requests_total[5m]))`
-- **Prometheus HTTP Latency p50/p95/p99**  
-  - Sorgular: `histogram_quantile(0.50|0.95|0.99, sum(rate(prometheus_http_request_duration_seconds_bucket[5m])) by (le))`
-- **Prometheus HTTP Error Rate (5xx oranı)**  
-  - Sorgu: `sum(rate(prometheus_http_requests_total{code=~"5.."}[5m])) / sum(rate(prometheus_http_requests_total[5m]))`
-- **HTTP 429 Rate Limit Oranı (örnek)**  
-  - Sorgu: `sum(rate(prometheus_http_requests_total{code="429"}[5m])) / sum(rate(prometheus_http_requests_total[5m]))`
-- **Go Runtime**  
-  - `go_goroutines` (goroutine sayısı)
-  - `go_memstats_heap_alloc_bytes` (heap kullanımı)
-
-> Not: Şu anda gateway/backend uygulamaları kendi iş metriklerini (`/metrics` endpoint'i, RPS, latency, hata oranı, rate limit metrikleri vb.) expose etmemektedir.  
-> Backend/gateway ekipleri Prometheus client entegrasyonunu eklediğinde, bu dashboard üzerindeki PromQL sorguları ilgili metrik isimleriyle güncellenerek uygulama seviyesinde detaylı gözlemlenebilirlik sağlanabilir.
-
----
-
-## Docker Komutları
-
-### Servisleri Başlatma
-```bash
-# Image'ları derle ve servisleri arka planda başlat
-docker compose up -d --build
-```
-
-### Durum Kontrolü
 ```bash
 docker ps
 ```
 
+To view the application logs:
 
-### Logları İzleme
 ```bash
-# Tüm servislerin loglarını canlı izle
 docker compose logs -f
-
-# Sadece belirli bir servisin logları
-docker compose logs -f backend
-docker compose logs -f gateway
 ```
 
-### Servisi Durdurma & Yeniden Derleme
-```bash
-# Durdur ve yeniden başlat
-docker compose down
-docker compose up -d --build
-```
+## API Reference
 
----
+### Create Reservation
 
-## k6 Yük Testi (GIGA-42)
+`POST /api/v1/reserve`
 
-k6, Docker üzerinden çalışır — ayrıca kurulum gerekmez.
-
-```bash
-# Temel yük testini çalıştır 
-docker compose run --rm k6 run /scripts/basic-get.js
-```
-
-Test tamamlandığında terminalde istek sayısı, başarı oranı ve yanıt süreleri görüntülenir.
-
-
----
-
-## Redis Bağlantısı & Health Check 
-
-Backend başladığında otomatik olarak:
-1. Redis'e bağlanır (`REDIS_ADDR` ortam değişkeninden adresi alır, yoksa `localhost:6379` kullanır)
-2. `PING` komutu ile bağlantıyı doğrular
-
-
-
-## RedisInsight — Görsel İzleme 
-
-Tarayıcıda **`http://localhost:5540`** adresini aç.
-
-İlk bağlantı için:
-1. "Add Redis Database" butonuna tıkla
-2. **Host:** `redis` | **Port:** `6379`
-3. "Add Redis Database" ile kaydet
-
-Redis içindeki anahtarları, belllek kullanımını ve komut geçmişini buradan izleyebilirsin.
-
----
-
-## API Referansı
-
-### `POST /api/v1/reserve`
-
-Koltuk rezervasyonu oluşturur.
+Initiates a seat reservation process.
 
 **Request Body:**
 ```json
 {
   "user_id": "u-001",
-  "trip_id": "t-100",
+  "trip_id": "550e8400-e29b-41d4-a716-446655440000",
   "seat_id": "A1",
-  "Idempotency_key": "key-abc-123"
+  "idempotency_key": "key-abc-123",
+  "amount": 100.00
 }
 ```
 
-**Response:**
+**Response (Success):**
 ```json
 {
   "success": true,
-  "message": "Koltuk başarıyla rezerve edildi."
+  "payment_id": "uuid-string",
+  "message": "Reservation and payment completed."
 }
 ```
 
-### Testler (Postman)
-`tests/postman/gigascale-min.json` dosyasını Postman'e import edin.
+## Advanced Workflows
+
+### Saga Orchestration & Idempotency
+
+The Gateway service acts as the orchestrator. When a reservation request is received:
+1. A Redis lock is acquired to prevent concurrent modifications for the same seat.
+2. The Backend service is called to persist the reservation.
+3. The Payment service is called to process the transaction.
+4. If payment fails, a compensating transaction (CancelReservation) is triggered on the Backend.
+5. All operations utilize an `idempotency_key` to ensure that duplicate requests do not result in duplicate reservations or payments.
+
+### Asynchronous Notifications
+
+Upon a successful transaction, the Gateway publishes a `reservations.created` event to Kafka. The Notifier service consumes this event, logs the attempt in PostgreSQL for audit purposes (ensuring at-most-once delivery via idempotency checks), and sends an HTTP POST request to the configured `WEBHOOK_URL`.
+
+## Observability and Monitoring
+
+The project includes a comprehensive observability stack based on OpenTelemetry, Prometheus, and Grafana.
+
+### Note on OpenTelemetry Integration
+
+All OpenTelemetry instrumentation in this project (including context propagation across HTTP, gRPC, and Kafka boundaries) is powered by the **[go-otel-kit](https://github.com/Chimera-State/go-otel-kit)** library. If you are interested in how the telemetry infrastructure is abstracted and implemented, please check out the `go-otel-kit` repository.
+
+### Starting the Monitoring Stack
+
+Ensure the main stack is running, then start the monitoring components:
+
+```bash
+docker compose -f docker-compose-monitoring.yml up -d
+```
+
+### Accessing the Dashboards
+
+- **Prometheus**: `http://localhost:9090`
+- **Grafana**: `http://localhost:3000` (Anonymous access enabled)
+- **RedisInsight**: `http://localhost:5540` (Visual interface for Redis)
+
+In Grafana, navigate to **Dashboards -> Browse -> GigaScale** to view predefined metrics including RPS, Latency, Error Rates, and Go Runtime statistics.
+
+All services are instrumented with OpenTelemetry, propagating trace context across HTTP, gRPC, and Kafka boundaries. Traces can be exported to Jaeger or any OTLP-compatible backend (requires additional configuration in the collector).
+
+## Load Testing
+
+The repository includes k6 scripts for performance validation.
+
+```bash
+docker compose run --rm k6 run /scripts/basic-get.js
+```
+
+This will execute a predefined load test against the API gateway and output the performance metrics directly to your terminal.
