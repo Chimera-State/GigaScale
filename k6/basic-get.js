@@ -17,8 +17,8 @@ export default function () {
     const res = http.get('http://gateway:8080/health');
 
     check(res, {
-        'status 200 (Gateway Ayakta)': (r) => r.status === 200,
-        'cevap süresi 500ms altında': (r) => r.timings.duration < 500,
+        'Status_200_Success': (r) => r.status === 200,
+        'Response_Time_Under_500ms': (r) => r.timings.duration < 500,
     });
 
     sleep(1);

@@ -14,12 +14,22 @@ import (
 	"github.com/Chimera-State/GigaScale/internal/backend/redisclient"
 	"github.com/Chimera-State/GigaScale/internal/backend/repository"
 	"github.com/Chimera-State/GigaScale/internal/backend/service"
+	"github.com/Chimera-State/go-otel-kit/interceptor"
+	"github.com/Chimera-State/go-otel-kit/setup"
 	"github.com/redis/go-redis/v9"
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 )
 
 func main() {
+	ctx := context.Background()
+	if err := setup.Init(ctx,
+		setup.WithServiceName("gigascale-backend"),
+		setup.WithServiceVersion("1.0.0"),
+		setup.WithExporterEndpoint("otel-collector:4317"),
+	); err != nil {
+		log.Fatalf("OTel initaliziton failed: %v", err)
+	}
+	defer setup.Shutdown(ctx)
 
 	redisclient.InitRedisCluster()
 	redisclient.HealthCheck(context.Background())
@@ -33,8 +43,10 @@ func main() {
 		return handler(ctx, req)
 	}
 	s := grpc.NewServer(
-		grpc.StatsHandler(otelgrpc.NewServerHandler()),
-		grpc.UnaryInterceptor(loggingInterceptor),
+		grpc.ChainUnaryInterceptor(
+			interceptor.UnaryServerInterceptor(),
+			loggingInterceptor,
+		),
 	)
 	clusterAddrs := []string{
 		"redis-node-1:6379", "redis-node-2:6379", "redis-node-3:6379",

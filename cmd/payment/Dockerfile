@@ -4,17 +4,16 @@ FROM golang:1.25-alpine AS builder
 WORKDIR /app
 
 COPY go.mod go.sum ./
-RUN --mount=type=cache,target=/go/pkg/mod go mod download
+RUN go mod download
 
 
 COPY . .
-RUN --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=cache,target=/root/.cache/go-build \
-    CGO_ENABLED=0 GOOS=linux go build -o payment ./cmd/payment
+RUN GOOS=linux go build -o payment ./cmd/payment
 
-FROM alpine:3.19
+FROM debian:bookworm-slim
 
-RUN wget -qO /bin/grpc_health_probe https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/v0.4.25/grpc_health_probe-linux-amd64 \
+RUN apt-get update && apt-get install -y wget && rm -rf /var/lib/apt/lists/* \
+    && wget -qO /bin/grpc_health_probe https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/v0.4.25/grpc_health_probe-linux-amd64 \
     && chmod +x /bin/grpc_health_probe
 
 WORKDIR /app

@@ -6,7 +6,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/segmentio/kafka-go"
+	otelkafka "github.com/Chimera-State/go-otel-kit/kafka"
+	"github.com/twmb/franz-go/pkg/kgo"
 )
 
 type ReservationCreatedEvent struct {
@@ -19,19 +20,21 @@ type ReservationCreatedEvent struct {
 }
 
 type Publisher struct {
-	writer *kafka.Writer
+	client *kgo.Client
+	topic  string
 }
 
-func New(brokerAddr string) *Publisher {
-	w := &kafka.Writer{
-		Addr:         kafka.TCP(brokerAddr),
-		Topic:        "reservations.created",
-		Balancer:     &kafka.LeastBytes{},
-		RequiredAcks: kafka.RequireOne,
-		Async:        false,
+func New(brokerAddr string) (*Publisher, error) {
+	cl, err := kgo.NewClient(
+		kgo.SeedBrokers(brokerAddr),
+		kgo.AllowAutoTopicCreation(),
+	)
+	if err != nil {
+		return nil, err
 	}
-	return &Publisher{writer: w}
+	return &Publisher{client: cl, topic: "reservations.created"}, nil
 }
+
 func (p *Publisher) Publish(ctx context.Context, event ReservationCreatedEvent) error {
 	event.Timestamp = time.Now()
 
@@ -40,11 +43,17 @@ func (p *Publisher) Publish(ctx context.Context, event ReservationCreatedEvent) 
 		return err
 	}
 
-	err = p.writer.WriteMessages(ctx, kafka.Message{
+	record := &kgo.Record{
+		Topic: p.topic,
 		Key:   []byte(event.IdempotencyKey),
 		Value: data,
-	})
-	if err != nil {
+	}
+
+	// Inject OTel trace context into Kafka headers so the notifier
+	// can continue the same trace chain via ExtractFromRecord.
+	otelkafka.InjectToRecord(ctx, record)
+
+	if err := p.client.ProduceSync(ctx, record).FirstErr(); err != nil {
 		log.Printf("[KAFKA] publish error: %v", err)
 		return err
 	}
@@ -55,7 +64,5 @@ func (p *Publisher) Publish(ctx context.Context, event ReservationCreatedEvent) 
 }
 
 func (p *Publisher) Close() {
-	if err := p.writer.Close(); err != nil {
-		log.Printf("[KAFKA] close error: %v", err)
-	}
+	p.client.Close()
 }

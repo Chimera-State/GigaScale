@@ -5,19 +5,17 @@ WORKDIR /app
 
 # Bağımlılıkları önce kopyala 
 COPY go.mod go.sum  ./
-RUN --mount=type=cache,target=/go/pkg/mod go mod download
+RUN go mod download
 
 
 
 # Kaynak kodu kopyala ve derle
 COPY . .
-RUN --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=cache,target=/root/.cache/go-build \
-    CGO_ENABLED=0 GOOS=linux go build -o gateway ./cmd/gateway
+RUN GOOS=linux go build -o gateway ./cmd/gateway
 
 # aşama 2 : çalıştırma 
-FROM alpine:3.19
-RUN apk add --no-cache wget
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y wget && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
