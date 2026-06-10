@@ -33,17 +33,15 @@ func (s *Server) HandleReserve(w http.ResponseWriter, r *http.Request) {
 
 	lockKey := "lock:seat:" + req.SeatID
 
-	err = s.rdb.SetArgs(r.Context(), lockKey, req.UserID, redis.SetArgs{
-		Mode: "NX",
-		TTL:  5 * time.Second,
-	}).Err()
+	acquired, err := s.rdb.SetNX(r.Context(), lockKey, req.UserID, 5*time.Second).Result()
 
-	if err == redis.Nil {
+	if err != nil {
+		http.Error(w, "Redis Lock Error", http.StatusInternalServerError)
+		return
+	}
+	if !acquired {
 		w.WriteHeader(http.StatusConflict) // 409
 		json.NewEncoder(w).Encode(map[string]string{"error": "Seat is being processed or already taken"})
-		return
-	} else if err != nil {
-		http.Error(w, "Redis Lock Error", http.StatusInternalServerError)
 		return
 	}
 

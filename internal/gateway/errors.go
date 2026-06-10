@@ -11,6 +11,14 @@ import (
 func (s *Server) handleGRPCError(w http.ResponseWriter, err error) {
 	st, ok := status.FromError(err)
 	if !ok {
+		// Eğer hata orchestrator'da fmt.Errorf ile sarıldıysa (wrapped) unwrapping deneyelim.
+		type unwrap interface{ Unwrap() error }
+		if wrappedErr, ok2 := err.(unwrap); ok2 {
+			st, ok = status.FromError(wrappedErr.Unwrap())
+		}
+	}
+	
+	if !ok {
 		log.Printf("CRITICAL: Unknown error type: %v", err)
 		http.Error(w, "An unexpected error occured", http.StatusInternalServerError)
 		return

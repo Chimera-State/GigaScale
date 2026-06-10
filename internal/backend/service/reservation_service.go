@@ -104,7 +104,8 @@ func (s *ReservationService) ReserveSeat(ctx context.Context, req *reservationv1
 	if err := s.repo.Create(ctx, newReservation); err != nil {
 		log.Printf("[DATABASE ERROR] Trip: %s, Seat: %s, Error: %v", tripID, seatID, err)
 
-		if strings.Contains(err.Error(), "ALREADY_BOOKED") {
+		errStr := strings.ToLower(err.Error())
+		if strings.Contains(errStr, "already_booked") || strings.Contains(errStr, "unique constraint") || strings.Contains(errStr, "duplicate key") {
 			return nil, status.Error(codes.AlreadyExists, "Bu koltuk maalesef çoktan satıldı.")
 		}
 		return nil, status.Errorf(codes.Internal, "Beklenmedik veritabanı hatası: %v", err)
